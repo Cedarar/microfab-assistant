@@ -1194,7 +1194,8 @@ function viewBatchHistory() {
           <div class="batch-item-sub">${dn}/${tot} 完成${fc?' · ✗ '+fc+' 失败':''}${b.notes?' · '+b.notes:''}</div>
           <div style="display:flex;gap:7px;margin-top:8px">
             <button onclick="viewBatchDetail(${realIdx})" style="flex:1;padding:6px;border-radius:8px;border:1.5px solid var(--sky);background:#fff;color:var(--sky-d);font-size:12px;font-weight:600;cursor:pointer">📋 查看详情</button>
-            <button onclick="exportSingleBatch(${realIdx})" style="flex:1;padding:6px;border-radius:8px;border:1.5px solid #a7f3d0;background:#fff;color:#059669;font-size:12px;font-weight:600;cursor:pointer">📄 导出此批次</button>
+            <button onclick="exportSingleBatch(${realIdx})" style="flex:1;padding:6px;border-radius:8px;border:1.5px solid #a7f3d0;background:#fff;color:#059669;font-size:12px;font-weight:600;cursor:pointer">📄 导出</button>
+            <button onclick="deleteBatch(${realIdx})" style="padding:6px 10px;border-radius:8px;border:1.5px solid #fca5a5;background:#fff;color:#dc2626;font-size:12px;font-weight:600;cursor:pointer">🗑</button>
           </div>
         </div>`;
       }).join('');
@@ -1346,6 +1347,16 @@ function exportSingleBatch(idx) {
   closeModal();
   document.getElementById('pov').innerHTML = html;
   setTimeout(() => window.print(), 200);
+}
+
+function deleteBatch(idx) {
+  const allBatches = (db.batches||{})[curPid]||[];
+  const b = allBatches[idx];
+  if (!b) return;
+  if (!confirm(`确认删除批次「${b.name}」？此操作不可撤销。`)) return;
+  db.batches[curPid].splice(idx, 1);
+  save();
+  viewBatchHistory(); // 刷新列表
 }
 
 // ── EXPORT PDF ───────────────────────────────────────────────
