@@ -585,15 +585,32 @@ let curPid = null;
 let editMode = false;
 let _save = null;
 
-let db = (() => {
-  try {
-    const s = localStorage.getItem('mf_db');
-    if (s) { const p = JSON.parse(s); if (p.processes?.length) { if(!p.bookings)p.bookings={}; if(!p.failures)p.failures={}; if(!p.params)p.params={}; if(!p.batches)p.batches={}; return p; } }
-  } catch(e) {}
-  return { processes: JSON.parse(JSON.stringify(DEF)), progress: {}, bookings: {}, failures: {}, params: {}, batches: {} };
-})();
+let db = { processes: JSON.parse(JSON.stringify(DEF)), progress: {}, bookings: {}, failures: {}, params: {}, batches: {} };
+let _idb = null;
 
-function save() { localStorage.setItem('mf_db', JSON.stringify(db)); }
+function _idbOpen() {
+  return new Promise(res => {
+    const r = indexedDB.open('mfdb2', 1);
+    r.onupgradeneeded = e => e.target.result.createObjectStore('kv');
+    r.onsuccess = e => { _idb = e.target.result; res(); };
+    r.onerror = () => res();
+  });
+}
+
+function save() {
+  if (_idb) {
+    _idb.transaction('kv','readwrite').objectStore('kv').put(db,'db');
+  }
+  // localStorage 备份（去掉照片，只保留文字记录，防止 IDB 不可用时丢失文字）
+  try {
+    const slim = JSON.parse(JSON.stringify(db));
+    Object.values(slim.params||{}).forEach(steps =>
+      Object.values(steps).forEach(d => { if(d) delete d.photos; }));
+    Object.values(slim.batches||{}).forEach(arr =>
+      arr.forEach(b => Object.values(b.params||{}).forEach(d => { if(d) delete d.photos; })));
+    localStorage.setItem('mf_db', JSON.stringify(slim));
+  } catch(e) {}
+}
 function prog(pid) { return db.progress[pid] || {}; }
 function totalSteps(p) { return p.phases.reduce((s,ph)=>s+ph.steps.length,0); }
 function doneSteps(pid,p) { const g=prog(pid); return p.phases.reduce((s,ph)=>s+ph.steps.filter(st=>g[st.id]).length,0); }
@@ -1096,21 +1113,12 @@ function handlePhoto(e) {
   const file = e.target.files[0];
   if (!file) return;
   e.target.value = '';
-  const img = new Image();
-  const url = URL.createObjectURL(file);
-  img.onload = () => {
-    const MAX = 600;
-    let w = img.width, h = img.height;
-    if (w >= h && w > MAX) { h = h * MAX / w; w = MAX; }
-    else if (h > w && h > MAX) { w = w * MAX / h; h = MAX; }
-    const c = document.createElement('canvas');
-    c.width = Math.round(w); c.height = Math.round(h);
-    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-    _ep.photos.push(c.toDataURL('image/jpeg', 0.62));
-    URL.revokeObjectURL(url);
+  const reader = new FileReader();
+  reader.onload = ev => {
+    _ep.photos.push(ev.target.result);
     _renderParamModal();
   };
-  img.src = url;
+  reader.readAsDataURL(file);
 }
 
 function viewPhoto(idx, sid) {
@@ -1482,7 +1490,42 @@ function openAddProcModal() {
 }
 
 // ── INIT ─────────────────────────────────────────────────────
-render();
+(async () => {
+  await _idbOpen();
+  const loadLS = () => {
+    try {
+      const s = localStorage.getItem('mf_db');
+      if (!s) return false;
+      const p = JSON.parse(s);
+      if (!p?.processes?.length) return false;
+      if (!p.bookings) p.bookings = {};
+      if (!p.failures) p.failures = {};
+      if (!p.params) p.params = {};
+      if (!p.batches) p.batches = {};
+      db = p;
+      return true;
+    } catch(e) { return false; }
+  };
+  if (_idb) {
+    const saved = await new Promise(res => {
+      const r = _idb.transaction('kv').objectStore('kv').get('db');
+      r.onsuccess = e => res(e.target.result ?? null);
+      r.onerror = () => res(null);
+    });
+    if (saved?.processes?.length) {
+      db = saved;
+      if (!db.bookings) db.bookings = {};
+      if (!db.failures) db.failures = {};
+      if (!db.params) db.params = {};
+      if (!db.batches) db.batches = {};
+    } else if (loadLS()) {
+      save(); // 迁移旧数据到 IndexedDB
+    }
+  } else {
+    loadLS();
+  }
+  render();
+})();
 </script>
 </body>
 </html>
