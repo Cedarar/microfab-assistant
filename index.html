@@ -154,10 +154,61 @@ body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei
 .bk-clr:hover{color:var(--red)}
 .no-bk{font-size:13px;color:var(--muted);text-align:center;padding:8px 0 4px}
 
+/* FAIL */
+.step.fail{background:#fff5f5}
+.chk.fail{background:var(--red);border-color:var(--red);color:#fff}
+.fail-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#b91c1c;background:#fee2e2;border-radius:4px;padding:2px 8px;margin-top:4px}
+.fail-btn{display:inline-flex;align-items:center;gap:3px;margin-top:6px;margin-left:4px;font-size:12px;padding:4px 10px;border-radius:20px;border:1.5px solid #fca5a5;background:transparent;color:#dc2626;cursor:pointer;transition:all .2s}
+.fail-btn:hover,.fail-btn.set{background:#fee2e2}
+.step-btns{display:flex;flex-wrap:wrap;gap:0}
+/* EXPORT FAB */
+.fab-g{background:#fff;color:#059669;border:1.5px solid #a7f3d0}
+.fab-g:hover{background:#ecfdf5;transform:translateY(-1px)}
+/* TIMER */
+.tbar{position:fixed;top:0;left:0;right:0;z-index:300;background:linear-gradient(135deg,#0ea5e9,#0284c7);color:#fff;padding:10px 16px;display:none;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,.2);max-width:640px;margin:0 auto}
+.tbar.on{display:flex}
+.tbar-info{flex:1}
+.tbar-nm{font-size:11px;opacity:.8;margin-bottom:2px}
+.tbar-cnt{font-size:24px;font-weight:700;letter-spacing:.04em;font-variant-numeric:tabular-nums}
+.tbar-cnt.done{color:#fde68a;animation:blink 1s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+.tbar-stop{background:rgba(255,255,255,.22);border:none;color:#fff;padding:7px 16px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer}
+.tbtn{display:inline-flex;align-items:center;gap:3px;font-size:12px;padding:4px 10px;border-radius:20px;border:1.5px solid #bae6fd;background:transparent;color:#0284c7;cursor:pointer;transition:all .2s}
+.tbtn:hover{background:#e0f2fe}
+.tbtn.on{background:#0ea5e9;border-color:#0ea5e9;color:#fff;font-weight:600}
+/* PARAMS */
+.pbtn{display:inline-flex;align-items:center;gap:3px;font-size:12px;padding:4px 10px;border-radius:20px;border:1.5px solid #bbf7d0;background:transparent;color:#059669;cursor:pointer;transition:all .2s}
+.pbtn:hover{background:#ecfdf5}
+.pbtn.set{background:#ecfdf5;border-color:#34d399;font-weight:500}
+.psum{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.5}
+.pthumbs{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.pthumb{width:54px;height:54px;border-radius:7px;object-fit:cover;cursor:pointer;border:1.5px solid var(--border)}
+/* PHOTO VIEWER */
+.pvwr{position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:400;display:none;align-items:center;justify-content:center}
+.pvwr.on{display:flex}
+.pvwr img{max-width:96vw;max-height:88vh;border-radius:8px;object-fit:contain}
+.pvwr-close{position:absolute;top:16px;right:16px;background:rgba(255,255,255,.18);border:none;color:#fff;width:38px;height:38px;border-radius:50%;font-size:20px;cursor:pointer}
+
 @media(min-width:641px){.modal{border-radius:20px;max-height:80vh;margin-bottom:20px}.overlay{align-items:center}}
 </style>
 </head>
 <body>
+<!-- Timer banner -->
+<div class="tbar" id="tbar">
+  <div class="tbar-info">
+    <div class="tbar-nm" id="tbarNm"></div>
+    <div class="tbar-cnt" id="tbarCnt">00:00</div>
+  </div>
+  <button class="tbar-stop" onclick="stopTimer()">■ 停止</button>
+</div>
+<!-- Photo capture input (hidden) -->
+<input type="file" accept="image/*" capture="environment" id="photoCapture" style="display:none" onchange="handlePhoto(event)">
+<!-- Photo viewer -->
+<div class="pvwr" id="pvwr" onclick="closePvwr()">
+  <img id="pvwrImg" src="">
+  <button class="pvwr-close" onclick="closePvwr()">×</button>
+</div>
+
 <div class="wrap">
   <div class="ebanner" id="ebanner">
     <span id="ebtxt">✏️ 编辑模式 — 点击步骤旁的按钮修改内容</span>
@@ -182,6 +233,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei
 
 <div class="fab-wrap" id="fab">
   <button class="fab fab-r" onclick="resetProg()"><span>↺</span><span id="rstTxt">重置进度</span></button>
+  <button class="fab fab-g" onclick="exportRecord()"><span id="expTxt">📄 导出记录</span></button>
 </div>
 
 <div class="overlay" id="overlay" onclick="overlayClick(event)">
@@ -516,9 +568,9 @@ let _save = null;
 let db = (() => {
   try {
     const s = localStorage.getItem('mf_db');
-    if (s) { const p = JSON.parse(s); if (p.processes?.length) { if(!p.bookings)p.bookings={}; return p; } }
+    if (s) { const p = JSON.parse(s); if (p.processes?.length) { if(!p.bookings)p.bookings={}; if(!p.failures)p.failures={}; if(!p.params)p.params={}; return p; } }
   } catch(e) {}
-  return { processes: JSON.parse(JSON.stringify(DEF)), progress: {}, bookings: {} };
+  return { processes: JSON.parse(JSON.stringify(DEF)), progress: {}, bookings: {}, failures: {}, params: {} };
 })();
 
 function save() { localStorage.setItem('mf_db', JSON.stringify(db)); }
@@ -587,6 +639,26 @@ const T = {
   bkClear:{zh:'取消预约',en:'Clear Booking'},
   bkNone:{zh:'暂无预约',en:'No upcoming bookings'},
   bkNotePlh:{zh:'如：需要老师在场、提前联系管理员',en:'e.g., Notify lab manager, bring sample'},
+  failBtn:{zh:'✗ 标记失败',en:'✗ Mark Failed'},
+  failModal:{zh:'标记失败原因',en:'Mark Step as Failed'},
+  failReason:{zh:'失败原因（可选）',en:'Reason (optional)'},
+  failReasonPlh:{zh:'如：显影过度、对准偏差过大',en:'e.g., Over-development, misalignment'},
+  failClear:{zh:'取消失败标记',en:'Clear failure mark'},
+  failLabel:{zh:'失败',en:'Failed'},
+  exportBtn:{zh:'📄 导出记录',en:'📄 Export Record'},
+  exportDone:{zh:'已复制到剪贴板 ✓',en:'Copied to clipboard ✓'},
+  exportFail:{zh:'请手动复制下方内容：',en:'Please copy the text below:'},
+  timerSet:{zh:'⏱ 设置计时器',en:'⏱ Set Timer'},
+  timerBtn:{zh:'⏱ 计时',en:'⏱ Timer'},
+  timerStart:{zh:'开始计时',en:'Start'},
+  paramBtn:{zh:'📝 参数记录',en:'📝 Log Params'},
+  paramSet:{zh:'📝 已记录',en:'📝 Logged'},
+  paramModal:{zh:'📝 参数记录',en:'📝 Parameter Log'},
+  paramText:{zh:'实际参数',en:'Actual Parameters'},
+  paramTextPlh:{zh:'如：转速 4000 rpm，时间 35 s，温度 23°C',en:'e.g., spin 4000 rpm, 35 s, 23°C'},
+  paramPhoto:{zh:'照片记录',en:'Photos'},
+  paramTakePhoto:{zh:'📷 拍照 / 选择图片',en:'📷 Take / Choose Photo'},
+  paramClear:{zh:'清除所有记录',en:'Clear All Records'},
 };
 function t(k) { return (T[k]||{})[lang]||k; }
 
@@ -690,9 +762,10 @@ function renderProc() {
   if (!p) return;
   const tot=totalSteps(p), dn=doneSteps(curPid,p), pct=tot?Math.round(dn/tot*100):0;
   const g = prog(curPid);
+  const failCount = Object.keys((db.failures||{})[curPid]||{}).length;
 
   let h = `<div class="pgbar">
-    <div class="pgbar-top"><span class="pgbar-lbl">${t('prog')}</span><span class="pgbar-pct">${dn} / ${tot} ${t('steps')} (${pct}%)</span></div>
+    <div class="pgbar-top"><span class="pgbar-lbl">${t('prog')}</span><span class="pgbar-pct">${dn} / ${tot} ${t('steps')} (${pct}%)${failCount?` · <span style="color:var(--red)">${failCount} 失败</span>`:''}</span></div>
     <div class="pgbar-track"><div class="pgbar-fill" style="width:${pct}%"></div></div>
     <div class="pgbar-time">${t('totalT')}：${timeTotal(p)}</div>
   </div>`;
@@ -712,10 +785,12 @@ function renderProc() {
 
     ph.steps.forEach((s,i) => {
       const done = !!g[s.id];
+      const failInfo = (db.failures||{})[curPid]?.[s.id];
+      const fail = !!failInfo;
       const hasN = s.notes?.length>0;
-      h += `<div class="step ${done?'done':''} ${editMode?'em':''}" id="st_${s.id}">
+      h += `<div class="step ${done?'done':''} ${fail?'fail':''} ${editMode?'em':''}" id="st_${s.id}">
         <div class="step-main" onclick="toggleStep('${s.id}')">
-          <div class="chk">${done?'✓':''}</div>
+          <div class="chk ${fail?'fail':''}">${done?'✓':fail?'✗':''}</div>
           <div class="sinfo">
             <div class="shdr">
               <div class="sname">${i+1}. ${txt(s.name)}</div>
@@ -726,11 +801,21 @@ function renderProc() {
         </div>
         ${(() => {
           const bk = (db.bookings||{})[s.id];
-          if (bk?.dt) {
-            return `<button class="bk-btn set" onclick="openBookingModal('${s.id}')">📅 ${formatDt(bk.dt)}</button>
-            ${bk.note?`<div class="bk-note-txt">备注：${bk.note}</div>`:''}`;
-          }
-          return `<button class="bk-btn" onclick="openBookingModal('${s.id}')">${t('bkBtn')}</button>`;
+          const pr = (db.params||{})[curPid]?.[s.id];
+          const hasP = !!(pr?.text || pr?.photos?.length);
+          const isT = timer.sid === s.id;
+          return `<div class="step-btns" style="gap:4px;margin-top:6px;flex-wrap:wrap">
+            ${bk?.dt
+              ? `<button class="bk-btn set" onclick="openBookingModal('${s.id}')">📅 ${formatDt(bk.dt)}</button>`
+              : `<button class="bk-btn" onclick="openBookingModal('${s.id}')">${t('bkBtn')}</button>`}
+            <button class="fail-btn ${fail?'set':''}" onclick="openFailModal('${s.id}')">${fail?'✗ '+t('failLabel'):t('failBtn')}</button>
+            <button class="tbtn ${isT?'on':''}" data-tsid="${s.id}" onclick="isTimerFor('${s.id}')?stopTimer():openTimerModal('${s.id}','${txt(s.name).replace(/'/g,"\\'")}','${txt(s.time)}')">${isT?'⏱ '+fmtTime(timer.rem):t('timerBtn')}</button>
+            <button class="pbtn ${hasP?'set':''}" onclick="openParamModal('${s.id}','${txt(s.name).replace(/'/g,"\\'")}')"> ${hasP?t('paramSet'):t('paramBtn')}</button>
+          </div>
+          ${bk?.note?`<div class="bk-note-txt">📅 备注：${bk.note}</div>`:''}
+          ${fail && failInfo?.reason?`<div class="fail-badge">✗ ${failInfo.reason}</div>`:fail?`<div class="fail-badge">✗ ${t('failLabel')}</div>`:''}
+          ${pr?.text?`<div class="psum">📝 ${pr.text.slice(0,60)}${pr.text.length>60?'…':''}</div>`:''}
+          ${pr?.photos?.length?`<div class="pthumbs">${pr.photos.map((ph,pi)=>`<img src="${ph}" class="pthumb" onclick="viewPhoto(${pi},'${s.id}')">`).join('')}</div>`:''}`;
         })()}`;
       if (hasN) {
         h += `<button class="ntoggle" onclick="toggleNotes('${s.id}')">
@@ -769,6 +854,8 @@ function toggleStep(sid) {
   const g = prog(curPid);
   g[sid] = !g[sid];
   db.progress[curPid] = g;
+  // 标记为完成时清除失败标记
+  if (g[sid] && db.failures?.[curPid]?.[sid]) delete db.failures[curPid][sid];
   save(); render();
 }
 function togglePhase(pid) {
@@ -817,6 +904,257 @@ function clearBooking(sid) {
   if (!db.bookings) return;
   delete db.bookings[sid];
   save(); render();
+}
+
+// ── FAILURE ──────────────────────────────────────────────────
+function openFailModal(sid) {
+  if (!db.failures) db.failures = {};
+  if (!db.failures[curPid]) db.failures[curPid] = {};
+  const existing = db.failures[curPid][sid];
+  const body = `
+    <div class="fg">
+      <label class="flabel">${t('failReason')}</label>
+      <input class="fi" id="fail_r" placeholder="${t('failReasonPlh')}" value="${existing?.reason||''}">
+    </div>
+    ${existing ? `<button onclick="clearFailed('${sid}');closeModal()" style="width:100%;padding:10px;border-radius:8px;border:none;background:#fee2e2;color:#b91c1c;font-size:13px;cursor:pointer;margin-bottom:4px">${t('failClear')}</button>` : ''}
+  `;
+  openModal(t('failModal'), body, () => {
+    // 标记失败时清除完成状态
+    if (db.progress[curPid]) db.progress[curPid][sid] = false;
+    db.failures[curPid][sid] = { reason: document.getElementById('fail_r').value.trim(), ts: Date.now() };
+    save(); closeModal(); render();
+  });
+}
+
+function clearFailed(sid) {
+  if (db.failures?.[curPid]?.[sid]) delete db.failures[curPid][sid];
+  save(); render();
+}
+
+// ── TIMER ────────────────────────────────────────────────────
+let timer = { sid: null, rem: 0, itvl: null, name: '' };
+
+function isTimerFor(sid) { return timer.sid === sid; }
+
+function fmtTime(sec) {
+  const m = Math.floor(sec/60), s = sec % 60;
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function parseStepTime(str) {
+  const s = str || '';
+  const secR = s.match(/(\d+)\s*[–\-~]\s*(\d+)\s*s/i) || s.match(/(\d+)\s*s(?!ec)/i);
+  if (secR) return secR[2] ? parseInt(secR[2]) : parseInt(secR[1]);
+  const minR = s.match(/(\d+)\s*[–\-~]\s*(\d+)\s*min/i) || s.match(/(\d+)\s*min/i);
+  if (minR) return parseInt(minR[1]) * 60;
+  return 5 * 60;
+}
+
+function openTimerModal(sid, stepName, timeStr) {
+  const def = parseStepTime(timeStr);
+  const dm = Math.floor(def/60), ds = def % 60;
+  openModal(t('timerSet'), `
+    <div style="font-size:13px;color:var(--muted);text-align:center;margin-bottom:14px">${stepName}</div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:10px">
+      <div style="text-align:center">
+        <input class="fi" type="number" id="tm_m" value="${dm}" min="0" max="99" style="width:72px;text-align:center;font-size:22px;font-weight:700">
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">分钟</div>
+      </div>
+      <div style="font-size:26px;font-weight:700;padding-bottom:20px">:</div>
+      <div style="text-align:center">
+        <input class="fi" type="number" id="tm_s" value="${ds}" min="0" max="59" style="width:72px;text-align:center;font-size:22px;font-weight:700">
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">秒</div>
+      </div>
+    </div>
+  `, () => {
+    const total = (parseInt(document.getElementById('tm_m').value)||0)*60 + (parseInt(document.getElementById('tm_s').value)||0);
+    if (total <= 0) return;
+    startTimer(sid, stepName, total);
+    closeModal();
+  });
+  document.getElementById('msave').textContent = t('timerStart');
+}
+
+function startTimer(sid, name, seconds) {
+  if (timer.itvl) clearInterval(timer.itvl);
+  timer = { sid, name, rem: seconds, itvl: null };
+  const bar = document.getElementById('tbar');
+  bar.classList.add('on');
+  document.getElementById('tbarNm').textContent = name;
+  document.getElementById('tbarCnt').textContent = fmtTime(seconds);
+  document.getElementById('tbarCnt').classList.remove('done');
+  document.querySelector('.wrap').style.paddingTop = '60px';
+  render();
+  timer.itvl = setInterval(() => {
+    timer.rem--;
+    const cnt = document.getElementById('tbarCnt');
+    if (cnt) cnt.textContent = fmtTime(Math.max(0, timer.rem));
+    // update just the button text, no full render
+    const btn = document.querySelector(`[data-tsid="${timer.sid}"]`);
+    if (btn) btn.textContent = '⏱ ' + fmtTime(Math.max(0, timer.rem));
+    if (timer.rem <= 0) {
+      clearInterval(timer.itvl); timer.itvl = null;
+      if (cnt) cnt.classList.add('done');
+      if (navigator.vibrate) navigator.vibrate([400, 150, 400, 150, 600]);
+      render();
+    }
+  }, 1000);
+}
+
+function stopTimer() {
+  if (timer.itvl) clearInterval(timer.itvl);
+  timer = { sid: null, rem: 0, itvl: null, name: '' };
+  document.getElementById('tbar').classList.remove('on');
+  document.getElementById('tbarCnt').classList.remove('done');
+  document.querySelector('.wrap').style.paddingTop = '';
+  render();
+}
+
+// ── PARAMS & PHOTOS ──────────────────────────────────────────
+let _ep = { sid: null, pid: null, text: '', photos: [], name: '' };
+
+function openParamModal(sid, stepName) {
+  if (!db.params) db.params = {};
+  if (!db.params[curPid]) db.params[curPid] = {};
+  const ex = db.params[curPid][sid] || {};
+  _ep = { sid, pid: curPid, text: ex.text||'', photos: [...(ex.photos||[])], name: stepName };
+  _renderParamModal();
+}
+
+function _renderParamModal() {
+  const thumbs = _ep.photos.map((src, i) =>
+    `<div style="position:relative;display:inline-block">
+      <img src="${src}" class="pthumb" onclick="viewPhotoEdit(${i})">
+      <button onclick="_ep.photos.splice(${i},1);_renderParamModal()" style="position:absolute;top:-5px;right:-5px;width:19px;height:19px;border-radius:50%;border:none;background:var(--red);color:#fff;font-size:12px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center">×</button>
+    </div>`
+  ).join('');
+
+  document.getElementById('mtitle').textContent = t('paramModal');
+  document.getElementById('mbody').innerHTML = `
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">${_ep.name}</div>
+    <div class="fg">
+      <label class="flabel">${t('paramText')}</label>
+      <textarea class="fta" id="ptxt" rows="4" placeholder="${t('paramTextPlh')}">${_ep.text}</textarea>
+    </div>
+    <div class="fg">
+      <label class="flabel">${t('paramPhoto')}</label>
+      <div class="pthumbs" style="margin-bottom:8px">${thumbs}</div>
+      <button onclick="document.getElementById('photoCapture').click()" style="width:100%;padding:9px;border-radius:8px;border:1.5px dashed var(--border);background:transparent;color:var(--muted);font-size:13px;cursor:pointer">${t('paramTakePhoto')}</button>
+    </div>
+    ${(_ep.text||_ep.photos.length)?`<button onclick="_clearParams()" style="width:100%;padding:9px;border-radius:8px;border:none;background:#fee2e2;color:#b91c1c;font-size:13px;cursor:pointer">${t('paramClear')}</button>`:''}
+  `;
+  document.getElementById('msave').textContent = t('sv');
+  document.getElementById('mcancel').textContent = t('cancel');
+  document.getElementById('msave').style.display = '';
+  document.getElementById('overlay').classList.add('on');
+  window._modalSaveCallback = () => {
+    _ep.text = document.getElementById('ptxt').value.trim();
+    if (_ep.text || _ep.photos.length) {
+      db.params[_ep.pid][_ep.sid] = { text: _ep.text, photos: _ep.photos };
+    } else {
+      delete db.params[_ep.pid][_ep.sid];
+    }
+    save(); closeModal(); render();
+  };
+}
+
+function _clearParams() {
+  if (db.params?.[_ep.pid]?.[_ep.sid]) delete db.params[_ep.pid][_ep.sid];
+  save(); closeModal(); render();
+}
+
+function handlePhoto(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  e.target.value = '';
+  const img = new Image();
+  const url = URL.createObjectURL(file);
+  img.onload = () => {
+    const MAX = 600;
+    let w = img.width, h = img.height;
+    if (w >= h && w > MAX) { h = h * MAX / w; w = MAX; }
+    else if (h > w && h > MAX) { w = w * MAX / h; h = MAX; }
+    const c = document.createElement('canvas');
+    c.width = Math.round(w); c.height = Math.round(h);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    _ep.photos.push(c.toDataURL('image/jpeg', 0.62));
+    URL.revokeObjectURL(url);
+    _renderParamModal();
+  };
+  img.src = url;
+}
+
+function viewPhoto(idx, sid) {
+  const photos = db.params?.[curPid]?.[sid]?.photos || [];
+  if (photos[idx]) {
+    document.getElementById('pvwrImg').src = photos[idx];
+    document.getElementById('pvwr').classList.add('on');
+  }
+}
+function viewPhotoEdit(idx) {
+  document.getElementById('pvwrImg').src = _ep.photos[idx];
+  document.getElementById('pvwr').classList.add('on');
+}
+function closePvwr() {
+  document.getElementById('pvwr').classList.remove('on');
+}
+
+// ── EXPORT ───────────────────────────────────────────────────
+function exportRecord() {
+  const p = db.processes.find(x=>x.id===curPid);
+  if (!p) return;
+  const g = prog(curPid);
+  const fails = (db.failures||{})[curPid]||{};
+  const bks = db.bookings||{};
+  const tot = totalSteps(p), dn = doneSteps(curPid,p);
+  const failCount = Object.keys(fails).length;
+  const now = new Date();
+  const pad = n=>String(n).padStart(2,'0');
+  const dateStr = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+  let lines = [
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    '  微纳工艺助手 · 工艺记录导出',
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    `工艺名称：${txt(p.name)}`,
+    `导出时间：${dateStr}`,
+    `总进度：${dn}/${tot} 步完成${failCount?'，'+failCount+' 步失败':''}`,
+    '',
+  ];
+
+  p.phases.forEach(ph => {
+    lines.push(`【${txt(ph.name)}】`);
+    ph.steps.forEach((s,i) => {
+      const done = !!g[s.id];
+      const fail = fails[s.id];
+      const bk = bks[s.id];
+      let icon = done ? '✓' : fail ? '✗' : '○';
+      let line = `  ${icon} ${i+1}. ${txt(s.name)}  (${txt(s.time)})`;
+      if (fail?.reason) line += `\n      → 失败原因：${fail.reason}`;
+      if (bk?.dt) line += `\n      → 预约时间：${formatDt(bk.dt)}${bk.note?' · '+bk.note:''}`;
+      lines.push(line);
+    });
+    lines.push('');
+  });
+  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+  const content = lines.join('\n');
+  // 尝试复制到剪贴板，失败则弹出文本
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(content).then(() => {
+      openModal(t('exportBtn'),`<div style="color:#059669;font-weight:600;text-align:center;padding:16px 0">${t('exportDone')}</div>`, ()=>{closeModal();});
+      document.getElementById('msave').style.display='none';
+      document.getElementById('mcancel').textContent='关闭';
+    }).catch(()=>showExportText(content));
+  } else { showExportText(content); }
+}
+
+function showExportText(content) {
+  openModal(t('exportBtn'), `
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">${t('exportFail')}</div>
+    <textarea class="fta" rows="12" style="font-size:12px;font-family:monospace" onclick="this.select()">${content}</textarea>
+  `, ()=>closeModal());
+  document.getElementById('msave').textContent='关闭';
 }
 
 // ── EDIT MODE ────────────────────────────────────────────────
