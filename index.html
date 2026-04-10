@@ -253,7 +253,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei
 <div class="fab-wrap" id="fab">
   <button class="fab fab-r" onclick="resetProg()"><span>↺</span><span id="rstTxt">重置进度</span></button>
   <button class="fab fab-b" onclick="openNewBatchModal()">📦 <span id="batchTxt">新建批次</span></button>
-  <button class="fab fab-g" onclick="exportRecord()">📄 <span id="expTxt">导出记录</span></button>
+  <button class="fab fab-g" onclick="exportSingleBatch(-1)">📄 当前批次</button>
+  <button class="fab fab-g" onclick="exportRecord()" style="opacity:.8">📋 全部批次</button>
 </div>
 
 <div class="overlay" id="overlay" onclick="overlayClick(event)">
@@ -914,7 +915,12 @@ function toggleNotes(sid) {
   if(st){st._no=!st._no;render();}
 }
 function resetProg() {
-  if(confirm(t('rstQ'))){db.progress[curPid]={};save();render();}
+  if(confirm(t('rstQ'))){
+    db.progress[curPid]={};
+    if(db.failures) db.failures[curPid]={};
+    if(db.params) db.params[curPid]={};
+    save();render();
+  }
 }
 
 // ── BOOKING ──────────────────────────────────────────────────
@@ -1171,24 +1177,175 @@ function openNewBatchModal() {
 }
 
 function viewBatchHistory() {
-  const batches = ((db.batches||{})[curPid]||[]).slice().reverse();
+  const allBatches = (db.batches||{})[curPid]||[];
+  const batches = allBatches.slice().reverse(); // newest first, but keep real idx
   const p = db.processes.find(x=>x.id===curPid);
   const tot = totalSteps(p);
   let body = batches.length === 0
     ? `<div style="color:var(--muted);text-align:center;padding:20px">暂无历史批次</div>`
-    : batches.map(b => {
+    : batches.map((b, ri) => {
+        const realIdx = allBatches.length - 1 - ri;
         const dn = Object.values(b.progress||{}).filter(Boolean).length;
         const fc = Object.keys(b.failures||{}).length;
         const d = new Date(b.ts);
         const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
         return `<div class="batch-item">
           <div class="batch-item-hdr"><span>${b.name}</span><span style="font-size:11px;color:var(--muted)">${ds}</span></div>
-          <div class="batch-item-sub">${dn}/${tot} 完成${fc?' · '+fc+' 失败':''}${b.notes?' · '+b.notes:''}</div>
+          <div class="batch-item-sub">${dn}/${tot} 完成${fc?' · ✗ '+fc+' 失败':''}${b.notes?' · '+b.notes:''}</div>
+          <div style="display:flex;gap:7px;margin-top:8px">
+            <button onclick="viewBatchDetail(${realIdx})" style="flex:1;padding:6px;border-radius:8px;border:1.5px solid var(--sky);background:#fff;color:var(--sky-d);font-size:12px;font-weight:600;cursor:pointer">📋 查看详情</button>
+            <button onclick="exportSingleBatch(${realIdx})" style="flex:1;padding:6px;border-radius:8px;border:1.5px solid #a7f3d0;background:#fff;color:#059669;font-size:12px;font-weight:600;cursor:pointer">📄 导出此批次</button>
+          </div>
         </div>`;
       }).join('');
   openModal(`📦 ${t('batchHistory')} (${batches.length})`, body, ()=>closeModal());
   document.getElementById('msave').textContent = '关闭';
   document.getElementById('mcancel').style.display = 'none';
+}
+
+let _pvwrSrcs = [];
+function openPvwrAt(i) {
+  document.getElementById('pvwrImg').src = _pvwrSrcs[i];
+  document.getElementById('pvwr').classList.add('on');
+}
+
+function viewBatchDetail(idx) {
+  const allBatches = (db.batches||{})[curPid]||[];
+  const b = allBatches[idx];
+  const p = db.processes.find(x=>x.id===curPid);
+  if (!b || !p) return;
+  const g=b.progress||{}, fs=b.failures||{}, ps=b.params||{};
+  const tot=totalSteps(p), dn=Object.values(g).filter(Boolean).length, fc=Object.keys(fs).length;
+  const d=new Date(b.ts);
+  const ds=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  _pvwrSrcs = [];
+
+  let body = `<div style="background:var(--bg);border-radius:8px;padding:10px 12px;margin-bottom:12px">
+    <div style="font-weight:700;font-size:14px;margin-bottom:3px">${b.name}　<span style="font-size:11px;color:var(--muted);font-weight:400">${ds}</span></div>
+    <div style="font-size:12px;color:var(--muted)">${dn}/${tot} 完成${fc?' · ✗ '+fc+' 失败':''}${b.notes?' · '+b.notes:''}</div>
+  </div>`;
+
+  p.phases.forEach(ph => {
+    body += `<div style="margin-bottom:12px">
+      <div style="background:${ph.color};color:#fff;padding:7px 11px;border-radius:8px 8px 0 0;font-size:12px;font-weight:700">${txt(ph.name)}</div>
+      <div style="border:1px solid ${ph.color}44;border-top:none;border-radius:0 0 8px 8px;padding:8px 8px 2px">`;
+    ph.steps.forEach((s,i) => {
+      const done=!!g[s.id], fail=!!fs[s.id];
+      const pr=ps[s.id]||{};
+      const icon=done?'✓':fail?'✗':'○';
+      const bg=done?'#f0fdf4':fail?'#fff5f5':'#f8fafc';
+      const ic=done?'#16a34a':fail?'#dc2626':'#64748b';
+      body += `<div style="background:${bg};border-radius:8px;padding:10px 12px;margin-bottom:6px;border:1px solid ${done?'#bbf7d0':fail?'#fecaca':'#e2e8f0'}">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:22px;height:22px;border-radius:6px;background:${ic};color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0">${icon}</div>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:${ic}">${i+1}. ${txt(s.name)}</div>
+            <div style="font-size:11px;color:#64748b">⏱ ${txt(s.time)}${txt(s.equipment)?'　📍 '+txt(s.equipment):''}</div>
+          </div>
+        </div>`;
+      if (fail && fs[s.id]?.reason)
+        body += `<div style="margin-top:7px;background:#fee2e2;border-radius:6px;padding:6px 10px;font-size:12px;color:#b91c1c">✗ ${fs[s.id].reason}</div>`;
+      if (pr.text)
+        body += `<div style="margin-top:7px;background:#ecfdf5;border-radius:6px;padding:6px 10px;font-size:12px;color:#166534">📝 ${pr.text}</div>`;
+      if (pr.photos?.length) {
+        body += `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px">`;
+        pr.photos.forEach(src => {
+          const pi = _pvwrSrcs.length;
+          _pvwrSrcs.push(src);
+          body += `<img src="${src}" onclick="openPvwrAt(${pi})" style="width:60px;height:60px;object-fit:cover;border-radius:7px;border:1px solid #e2e8f0;cursor:pointer">`;
+        });
+        body += `</div>`;
+      }
+      body += `</div>`;
+    });
+    body += `</div></div>`;
+  });
+
+  openModal(`📋 ${b.name}`, body, ()=>closeModal());
+  document.getElementById('msave').textContent = '关闭';
+  document.getElementById('mcancel').style.display = 'none';
+}
+
+function exportSingleBatch(idx) {
+  const allBatches = (db.batches||{})[curPid]||[];
+  const isCurrent = (idx === -1);
+  const b = isCurrent
+    ? { name:'当前批次', ts:Date.now(), notes:'',
+        progress: db.progress[curPid]||{},
+        failures: (db.failures||{})[curPid]||{},
+        params:   (db.params||{})[curPid]||{} }
+    : allBatches[idx];
+  const p = db.processes.find(x=>x.id===curPid);
+  if (!b || !p) return;
+  const g=b.progress||{}, fs=b.failures||{}, ps=b.params||{}, bks=db.bookings||{};
+  const tot=totalSteps(p), dn=Object.values(g).filter(Boolean).length, fc=Object.keys(fs).length;
+  const now=new Date(), pad=n=>String(n).padStart(2,'0');
+  const dateStr=`${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const d=new Date(b.ts);
+  const bds=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+
+  let html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;max-width:800px;margin:0 auto;padding:20px;color:#0f172a">
+    <div style="text-align:center;padding-bottom:18px;margin-bottom:24px;border-bottom:2px solid #0ea5e9">
+      <div style="font-size:22px;font-weight:800;color:#0284c7">${txt(p.name)}</div>
+      <div style="font-size:15px;font-weight:700;color:#334155;margin-top:6px">${b.name}　<span style="font-size:12px;font-weight:400;color:#64748b">${bds}</span></div>
+      ${b.notes?`<div style="font-size:12px;color:#64748b;margin-top:3px">${b.notes}</div>`:''}
+      <div style="font-size:11px;color:#94a3b8;margin-top:4px">导出时间：${dateStr}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;justify-content:center">
+        <span style="background:#e0f2fe;color:#0284c7;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:600">${tot} 步</span>
+        <span style="background:#dcfce7;color:#166534;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:600">✓ ${dn} 完成</span>
+        ${fc?`<span style="background:#fee2e2;color:#b91c1c;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:600">✗ ${fc} 失败</span>`:''}
+      </div>
+    </div>`;
+  p.phases.forEach(ph => {
+    const phDn=ph.steps.filter(s=>!!g[s.id]).length;
+    html += `<div style="margin-bottom:14px">
+      <div style="background:${ph.color};color:white;padding:8px 13px;border-radius:8px 8px 0 0;font-size:13px;font-weight:700;display:flex;justify-content:space-between">
+        <span>${txt(ph.name)}</span><span style="opacity:.75">${phDn}/${ph.steps.length}</span>
+      </div>
+      <div style="border:1px solid ${ph.color}33;border-top:none;border-radius:0 0 8px 8px;padding:10px 10px 2px">`;
+    ph.steps.forEach((s,i) => {
+      const done=!!g[s.id], fail=!!fs[s.id];
+      const pr=ps[s.id]||{}, bk=bks[s.id];
+      const icon=done?'✓':fail?'✗':'○';
+      const bg=done?'#f0fdf4':fail?'#fff5f5':'#fff';
+      const ic=done?'#16a34a':fail?'#dc2626':'#64748b';
+      html += `<div style="background:${bg};border-radius:10px;padding:13px 15px;margin-bottom:8px;border:1px solid ${done?'#bbf7d0':fail?'#fecaca':'#e2e8f0'}">
+        <div style="display:flex;align-items:flex-start;gap:10px">
+          <div style="width:26px;height:26px;border-radius:7px;background:${ic};color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;margin-top:1px">${icon}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:14px;font-weight:600;color:${ic}">${i+1}. ${txt(s.name)}</div>
+            <div style="font-size:12px;color:#64748b;margin-top:3px">⏱ ${txt(s.time)}${txt(s.equipment)?'　📍 '+txt(s.equipment):''}</div>
+          </div>
+        </div>`;
+      if (fail && fs[s.id]?.reason)
+        html += `<div style="margin-top:8px;background:#fee2e2;border-radius:7px;padding:8px 12px;font-size:12px;color:#b91c1c">✗ 失败原因：${fs[s.id].reason}</div>`;
+      if (bk?.dt)
+        html += `<div style="margin-top:6px;font-size:12px;color:#0284c7">📅 预约：${formatDt(bk.dt)}${bk.note?' · '+bk.note:''}</div>`;
+      if (pr.text)
+        html += `<div style="margin-top:8px;background:#ecfdf5;border-radius:7px;padding:8px 12px;font-size:12px;color:#166534">📝 ${pr.text}</div>`;
+      if (pr.photos?.length) {
+        html += `<div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:10px">`;
+        pr.photos.forEach(src => { html += `<img src="${src}" style="width:130px;height:130px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0">`; });
+        html += `</div>`;
+      }
+      if (s.notes?.length) {
+        html += `<div style="margin-top:10px;background:#f8fafc;border-radius:7px;padding:10px 12px">
+          <div style="font-size:10px;font-weight:700;color:#94a3b8;letter-spacing:.06em;margin-bottom:6px">注意事项</div>`;
+        s.notes.forEach(n => {
+          const tx=txt(n), isW=tx.startsWith('⚠'), clean=tx.replace(/^⚠\s*/,'');
+          html += `<div style="font-size:12px;color:${isW?'#92400e':'#334155'};padding:2px 0 2px 16px;position:relative;${isW?'background:#fef3c7;border-radius:4px;padding:4px 8px 4px 22px;margin:3px 0':''}">
+            <span style="position:absolute;left:${isW?6:2}px;color:${isW?'#f97316':'#0ea5e9'}">${isW?'⚠':'·'}</span>${clean}</div>`;
+        });
+        html += `</div>`;
+      }
+      html += `</div>`;
+    });
+    html += `</div></div>`;
+  });
+  html += `</div>`;
+  closeModal();
+  document.getElementById('pov').innerHTML = html;
+  setTimeout(() => window.print(), 200);
 }
 
 // ── EXPORT PDF ───────────────────────────────────────────────
