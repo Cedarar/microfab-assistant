@@ -188,11 +188,30 @@ body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei
 .pvwr.on{display:flex}
 .pvwr img{max-width:96vw;max-height:88vh;border-radius:8px;object-fit:contain}
 .pvwr-close{position:absolute;top:16px;right:16px;background:rgba(255,255,255,.18);border:none;color:#fff;width:38px;height:38px;border-radius:50%;font-size:20px;cursor:pointer}
+/* BATCH */
+.batch-bar{background:#fff;padding:9px 15px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:12px}
+.batch-info{color:var(--muted)}
+.batch-info b{color:var(--text)}
+.batch-link{color:var(--sky);font-weight:600;cursor:pointer;border:none;background:none;font-size:12px;padding:0}
+.batch-item{background:var(--bg);border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:13px}
+.batch-item-hdr{font-weight:600;margin-bottom:4px;display:flex;justify-content:space-between}
+.batch-item-sub{font-size:12px;color:var(--muted)}
+.fab-b{background:#fff;color:#7c3aed;border:1.5px solid #ddd6fe}
+.fab-b:hover{background:#f5f3ff;transform:translateY(-1px)}
 
 @media(min-width:641px){.modal{border-radius:20px;max-height:80vh;margin-bottom:20px}.overlay{align-items:center}}
+/* PRINT */
+#pov{display:none}
+@media print{
+  body>*:not(#pov){display:none!important}
+  #pov{display:block!important;padding:0;background:white}
+  .pov-step{page-break-inside:avoid}
+  .pov-phase{page-break-inside:avoid}
+}
 </style>
 </head>
 <body>
+<div id="pov"></div>
 <!-- Timer banner -->
 <div class="tbar" id="tbar">
   <div class="tbar-info">
@@ -233,7 +252,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei
 
 <div class="fab-wrap" id="fab">
   <button class="fab fab-r" onclick="resetProg()"><span>↺</span><span id="rstTxt">重置进度</span></button>
-  <button class="fab fab-g" onclick="exportRecord()"><span id="expTxt">📄 导出记录</span></button>
+  <button class="fab fab-b" onclick="openNewBatchModal()">📦 <span id="batchTxt">新建批次</span></button>
+  <button class="fab fab-g" onclick="exportRecord()">📄 <span id="expTxt">导出记录</span></button>
 </div>
 
 <div class="overlay" id="overlay" onclick="overlayClick(event)">
@@ -568,9 +588,9 @@ let _save = null;
 let db = (() => {
   try {
     const s = localStorage.getItem('mf_db');
-    if (s) { const p = JSON.parse(s); if (p.processes?.length) { if(!p.bookings)p.bookings={}; if(!p.failures)p.failures={}; if(!p.params)p.params={}; return p; } }
+    if (s) { const p = JSON.parse(s); if (p.processes?.length) { if(!p.bookings)p.bookings={}; if(!p.failures)p.failures={}; if(!p.params)p.params={}; if(!p.batches)p.batches={}; return p; } }
   } catch(e) {}
-  return { processes: JSON.parse(JSON.stringify(DEF)), progress: {}, bookings: {}, failures: {}, params: {} };
+  return { processes: JSON.parse(JSON.stringify(DEF)), progress: {}, bookings: {}, failures: {}, params: {}, batches: {} };
 })();
 
 function save() { localStorage.setItem('mf_db', JSON.stringify(db)); }
@@ -648,6 +668,12 @@ const T = {
   exportBtn:{zh:'📄 导出记录',en:'📄 Export Record'},
   exportDone:{zh:'已复制到剪贴板 ✓',en:'Copied to clipboard ✓'},
   exportFail:{zh:'请手动复制下方内容：',en:'Please copy the text below:'},
+  newBatch:{zh:'📦 新建批次',en:'📦 New Batch'},
+  newBatchModal:{zh:'归档当前批次，开始新一批',en:'Archive Current Batch & Start New'},
+  batchName:{zh:'批次名称',en:'Batch Name'},
+  batchNotes:{zh:'备注（可选）',en:'Notes (optional)'},
+  batchHistory:{zh:'历史批次',en:'Batch History'},
+  batchStart:{zh:'开始新批次',en:'Start New Batch'},
   timerSet:{zh:'⏱ 设置计时器',en:'⏱ Set Timer'},
   timerBtn:{zh:'⏱ 计时',en:'⏱ Timer'},
   timerStart:{zh:'开始计时',en:'Start'},
@@ -764,11 +790,13 @@ function renderProc() {
   const g = prog(curPid);
   const failCount = Object.keys((db.failures||{})[curPid]||{}).length;
 
+  const batches = (db.batches||{})[curPid] || [];
   let h = `<div class="pgbar">
     <div class="pgbar-top"><span class="pgbar-lbl">${t('prog')}</span><span class="pgbar-pct">${dn} / ${tot} ${t('steps')} (${pct}%)${failCount?` · <span style="color:var(--red)">${failCount} 失败</span>`:''}</span></div>
     <div class="pgbar-track"><div class="pgbar-fill" style="width:${pct}%"></div></div>
     <div class="pgbar-time">${t('totalT')}：${timeTotal(p)}</div>
-  </div>`;
+  </div>
+  ${batches.length ? `<div class="batch-bar"><span class="batch-info">📦 <b>${batches.length}</b> 批历史记录</span><button class="batch-link" onclick="viewBatchHistory()">${t('batchHistory')} ›</button></div>` : ''}`;
 
   p.phases.forEach(ph => {
     const phDn = ph.steps.filter(s=>g[s.id]).length;
@@ -1047,8 +1075,9 @@ function _renderParamModal() {
   document.getElementById('mcancel').textContent = t('cancel');
   document.getElementById('msave').style.display = '';
   document.getElementById('overlay').classList.add('on');
-  window._modalSaveCallback = () => {
+  _save = () => {
     _ep.text = document.getElementById('ptxt').value.trim();
+    if (!db.params[_ep.pid]) db.params[_ep.pid] = {};
     if (_ep.text || _ep.photos.length) {
       db.params[_ep.pid][_ep.sid] = { text: _ep.text, photos: _ep.photos };
     } else {
@@ -1099,62 +1128,229 @@ function closePvwr() {
   document.getElementById('pvwr').classList.remove('on');
 }
 
-// ── EXPORT ───────────────────────────────────────────────────
+// ── BATCH MANAGEMENT ─────────────────────────────────────────
+function openNewBatchModal() {
+  const batches = (db.batches||{})[curPid]||[];
+  const n = batches.length + 1;
+  const today = new Date();
+  const defName = `第${n}批 · ${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  openModal(t('newBatchModal'), `
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px">当前进度将被归档，工艺步骤重置为未完成状态（参数记录保留在历史批次中）</div>
+    <div class="fg"><label class="flabel">${t('batchName')}</label><input class="fi" id="bn" value="${defName}"></div>
+    <div class="fg"><label class="flabel">${t('batchNotes')}</label><input class="fi" id="bnotes" placeholder="如：首次尝试，蒸镀参数待优化"></div>
+  `, () => {
+    const name = document.getElementById('bn').value.trim() || defName;
+    const notes = document.getElementById('bnotes').value.trim();
+    if (!db.batches) db.batches = {};
+    if (!db.batches[curPid]) db.batches[curPid] = [];
+    // archive current state
+    db.batches[curPid].push({
+      id: 'b_' + Date.now(),
+      name,
+      notes,
+      ts: Date.now(),
+      progress: JSON.parse(JSON.stringify(db.progress[curPid]||{})),
+      failures: JSON.parse(JSON.stringify((db.failures||{})[curPid]||{})),
+      params: JSON.parse(JSON.stringify((db.params||{})[curPid]||{}))
+    });
+    // reset current
+    db.progress[curPid] = {};
+    if (db.failures) db.failures[curPid] = {};
+    if (db.params) db.params[curPid] = {};
+    save(); closeModal(); render();
+  });
+  document.getElementById('msave').textContent = t('batchStart');
+}
+
+function viewBatchHistory() {
+  const batches = ((db.batches||{})[curPid]||[]).slice().reverse();
+  const p = db.processes.find(x=>x.id===curPid);
+  const tot = totalSteps(p);
+  let body = batches.length === 0
+    ? `<div style="color:var(--muted);text-align:center;padding:20px">暂无历史批次</div>`
+    : batches.map(b => {
+        const dn = Object.values(b.progress||{}).filter(Boolean).length;
+        const fc = Object.keys(b.failures||{}).length;
+        const d = new Date(b.ts);
+        const ds = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        return `<div class="batch-item">
+          <div class="batch-item-hdr"><span>${b.name}</span><span style="font-size:11px;color:var(--muted)">${ds}</span></div>
+          <div class="batch-item-sub">${dn}/${tot} 完成${fc?' · '+fc+' 失败':''}${b.notes?' · '+b.notes:''}</div>
+        </div>`;
+      }).join('');
+  openModal(`📦 ${t('batchHistory')} (${batches.length})`, body, ()=>closeModal());
+  document.getElementById('msave').textContent = '关闭';
+  document.getElementById('mcancel').style.display = 'none';
+}
+
+// ── EXPORT PDF ───────────────────────────────────────────────
 function exportRecord() {
   const p = db.processes.find(x=>x.id===curPid);
   if (!p) return;
+
   const g = prog(curPid);
   const fails = (db.failures||{})[curPid]||{};
+  const params = (db.params||{})[curPid]||{};
   const bks = db.bookings||{};
-  const tot = totalSteps(p), dn = doneSteps(curPid,p);
-  const failCount = Object.keys(fails).length;
+  const batches = (db.batches||{})[curPid]||[];
+  const tot = totalSteps(p), dn = doneSteps(curPid,p), fc = Object.keys(fails).length;
   const now = new Date();
   const pad = n=>String(n).padStart(2,'0');
   const dateStr = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
-  let lines = [
-    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-    '  微纳工艺助手 · 工艺记录导出',
-    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-    `工艺名称：${txt(p.name)}`,
-    `导出时间：${dateStr}`,
-    `总进度：${dn}/${tot} 步完成${failCount?'，'+failCount+' 步失败':''}`,
-    '',
-  ];
+  function stepBlock(s, idx, g2, fs2, ps2) {
+    const done=!!g2[s.id], fail=!!fs2[s.id];
+    const pr=ps2[s.id]||{}, bk=bks[s.id];
+    const icon = done?'✓':fail?'✗':'○';
+    const bg = done?'#f0fdf4':fail?'#fff5f5':'#fff';
+    const ic = done?'#16a34a':fail?'#dc2626':'#64748b';
+    let h = `<div class="pov-step" style="background:${bg};border-radius:10px;padding:13px 15px;margin-bottom:8px;border:1px solid ${done?'#bbf7d0':fail?'#fecaca':'#e2e8f0'}">
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        <div style="width:26px;height:26px;border-radius:7px;background:${ic};color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;margin-top:1px">${icon}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:600;color:${ic}">${idx+1}. ${txt(s.name)}</div>
+          <div style="font-size:12px;color:#64748b;margin-top:3px">⏱ ${txt(s.time)}${txt(s.equipment)?'　📍 '+txt(s.equipment):''}</div>
+        </div>
+      </div>`;
+    if (fail && fs2[s.id]?.reason)
+      h += `<div style="margin-top:8px;background:#fee2e2;border-radius:7px;padding:8px 12px;font-size:12px;color:#b91c1c">✗ 失败原因：${fs2[s.id].reason}</div>`;
+    if (bk?.dt)
+      h += `<div style="margin-top:6px;font-size:12px;color:#0284c7">📅 预约：${formatDt(bk.dt)}${bk.note?' · '+bk.note:''}</div>`;
+    if (pr.text)
+      h += `<div style="margin-top:8px;background:#ecfdf5;border-radius:7px;padding:8px 12px;font-size:12px;color:#166534">📝 ${pr.text}</div>`;
+    if (pr.photos?.length) {
+      h += `<div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:10px">`;
+      pr.photos.forEach(src => { h += `<img src="${src}" style="width:130px;height:130px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0">`; });
+      h += `</div>`;
+    }
+    if (s.notes?.length) {
+      h += `<div style="margin-top:10px;background:#f8fafc;border-radius:7px;padding:10px 12px">
+        <div style="font-size:10px;font-weight:700;color:#94a3b8;letter-spacing:.06em;margin-bottom:6px">注意事项</div>`;
+      s.notes.forEach(n => {
+        const tx=txt(n), isW=tx.startsWith('⚠'), clean=tx.replace(/^⚠\s*/,'');
+        h += `<div style="font-size:12px;color:${isW?'#92400e':'#334155'};padding:2px 0 2px 16px;position:relative;${isW?'background:#fef3c7;border-radius:4px;padding:4px 8px 4px 22px;margin:3px 0':''}">
+          <span style="position:absolute;left:${isW?6:2}px;color:${isW?'#f97316':'#0ea5e9'}">${isW?'⚠':'·'}</span>${clean}</div>`;
+      });
+      h += `</div>`;
+    }
+    h += `</div>`;
+    return h;
+  }
 
-  p.phases.forEach(ph => {
-    lines.push(`【${txt(ph.name)}】`);
-    ph.steps.forEach((s,i) => {
-      const done = !!g[s.id];
-      const fail = fails[s.id];
-      const bk = bks[s.id];
-      let icon = done ? '✓' : fail ? '✗' : '○';
-      let line = `  ${icon} ${i+1}. ${txt(s.name)}  (${txt(s.time)})`;
-      if (fail?.reason) line += `\n      → 失败原因：${fail.reason}`;
-      if (bk?.dt) line += `\n      → 预约时间：${formatDt(bk.dt)}${bk.note?' · '+bk.note:''}`;
-      lines.push(line);
+  function sectionHtml(g2, fs2, ps2, label, labelColor) {
+    let h = `<div style="margin-bottom:28px">
+      <div style="background:${labelColor};color:white;padding:10px 16px;border-radius:10px;font-size:14px;font-weight:700;margin-bottom:12px">${label}</div>`;
+    p.phases.forEach(ph => {
+      const phDn = ph.steps.filter(s=>!!g2[s.id]).length;
+      h += `<div class="pov-phase" style="margin-bottom:14px">
+        <div style="background:${ph.color};color:white;padding:8px 13px;border-radius:8px 8px 0 0;font-size:13px;font-weight:700;display:flex;justify-content:space-between">
+          <span>${txt(ph.name)}</span><span style="opacity:.75">${phDn}/${ph.steps.length}</span>
+        </div>
+        <div style="border:1px solid ${ph.color}33;border-top:none;border-radius:0 0 8px 8px;padding:10px 10px 2px">`;
+      ph.steps.forEach((s,i) => { h += stepBlock(s,i,g2,fs2,ps2); });
+      h += `</div></div>`;
     });
-    lines.push('');
-  });
-  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    h += `</div>`;
+    return h;
+  }
 
-  const content = lines.join('\n');
-  // 尝试复制到剪贴板，失败则弹出文本
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(content).then(() => {
-      openModal(t('exportBtn'),`<div style="color:#059669;font-weight:600;text-align:center;padding:16px 0">${t('exportDone')}</div>`, ()=>{closeModal();});
-      document.getElementById('msave').style.display='none';
-      document.getElementById('mcancel').textContent='关闭';
-    }).catch(()=>showExportText(content));
-  } else { showExportText(content); }
+  // Summary badges
+  let summary = `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">
+    <span style="background:#e0f2fe;color:#0284c7;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:600">${tot} 步</span>
+    <span style="background:#dcfce7;color:#166534;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:600">✓ ${dn} 完成</span>
+    ${fc?`<span style="background:#fee2e2;color:#b91c1c;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:600">✗ ${fc} 失败</span>`:''}
+    ${batches.length?`<span style="background:#ede9fe;color:#7c3aed;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:600">📦 ${batches.length+1} 批次</span>`:''}
+  </div>`;
+
+  let html = `<div style="font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;max-width:800px;margin:0 auto;padding:20px;color:#0f172a">
+    <div style="text-align:center;padding-bottom:18px;margin-bottom:24px;border-bottom:2px solid #0ea5e9">
+      <div style="font-size:22px;font-weight:800;color:#0284c7">${txt(p.name)}</div>
+      <div style="font-size:13px;color:#64748b;margin-top:5px">${txt(p.description)}</div>
+      <div style="font-size:11px;color:#94a3b8;margin-top:4px">导出时间：${dateStr}</div>
+      ${summary}
+    </div>
+    ${sectionHtml(g, fails, params, '当前批次', '#0ea5e9')}`;
+
+  if (batches.length) {
+    [...batches].reverse().forEach((b,i) => {
+      const d = new Date(b.ts);
+      const ds = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+      const bdn = Object.values(b.progress||{}).filter(Boolean).length;
+      const bfc = Object.keys(b.failures||{}).length;
+      html += sectionHtml(b.progress||{}, b.failures||{}, b.params||{},
+        `历史批次 ${batches.length-i}：${b.name}　${ds}　${bdn}/${tot} 完成${bfc?' · '+bfc+' 失败':''}${b.notes?' · '+b.notes:''}`, '#64748b');
+    });
+  }
+  html += `</div>`;
+
+  document.getElementById('pov').innerHTML = html;
+  setTimeout(() => window.print(), 200);
 }
 
-function showExportText(content) {
-  openModal(t('exportBtn'), `
-    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">${t('exportFail')}</div>
-    <textarea class="fta" rows="12" style="font-size:12px;font-family:monospace" onclick="this.select()">${content}</textarea>
-  `, ()=>closeModal());
-  document.getElementById('msave').textContent='关闭';
+// ── EXPORT TXT (保留备用) ─────────────────────────────────────
+function generateReport() {
+  const p = db.processes.find(x=>x.id===curPid);
+  if (!p) return '';
+  const pad = n=>String(n).padStart(2,'0');
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const tot = totalSteps(p);
+  const batches = (db.batches||{})[curPid]||[];
+  const sep  = '================================================================';
+  const sep2 = '────────────────────────────────────────────────────────────────';
+
+  function renderBatch(progress, failures, params, label) {
+    const g = progress||{}, fs = failures||{}, ps = params||{};
+    const dn = Object.values(g).filter(Boolean).length;
+    const fc = Object.keys(fs).length;
+    let lines = [`\n${sep}`, `  ${label}`, `  进度：${dn}/${tot} 步完成${fc?'，'+fc+' 步失败':''}`, sep];
+    p.phases.forEach(ph => {
+      lines.push(`\n◆ ${txt(ph.name)}`);
+      ph.steps.forEach((s,i) => {
+        const done = !!g[s.id], fail = fs[s.id];
+        const pr = ps[s.id]||{}, bk = (db.bookings||{})[s.id];
+        const icon = done?'✓':fail?'✗':'○';
+        lines.push(`${sep2}`);
+        lines.push(`${icon} 步骤 ${i+1}：${txt(s.name)}`);
+        lines.push(`  预计时间：${txt(s.time)}`);
+        if (txt(s.equipment)) lines.push(`  设备：${txt(s.equipment)}`);
+        if (fail) lines.push(`  【失败原因】${fail.reason||'（未填写）'}`);
+        if (bk?.dt) lines.push(`  【预约时间】${formatDt(bk.dt)}${bk.note?' · '+bk.note:''}`);
+        if (pr.text) lines.push(`  【实际参数】${pr.text}`);
+        if (pr.photos?.length) lines.push(`  【照片记录】${pr.photos.length} 张`);
+        if (s.notes?.length) {
+          lines.push('  【注意事项】');
+          s.notes.forEach(n => {
+            const tx = txt(n);
+            lines.push('    ' + (tx.startsWith('⚠')?tx:'· '+tx));
+          });
+        }
+      });
+    });
+    return lines.join('\n');
+  }
+
+  let out = [
+    sep,
+    '  微纳工艺助手 · 完整工艺记录',
+    sep,
+    `工艺名称：${txt(p.name)}`,
+    `描  述：${txt(p.description)}`,
+    `导出时间：${dateStr}`,
+    `历史批次：${batches.length} 批`,
+    '',
+  ].join('\n');
+
+  out += renderBatch(db.progress[curPid], (db.failures||{})[curPid], (db.params||{})[curPid], '当前批次');
+
+  if (batches.length) {
+    const sorted = [...batches].reverse();
+    sorted.forEach((b,i) => {
+      out += renderBatch(b.progress, b.failures, b.params, `历史批次 ${batches.length-i}：${b.name}${b.notes?' · '+b.notes:''}`);
+    });
+  }
+  out += `\n${sep}\n`;
+  return out;
 }
 
 // ── EDIT MODE ────────────────────────────────────────────────
