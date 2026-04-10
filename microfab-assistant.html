@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>微纳工艺助手</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --sky:#0ea5e9;--sky-d:#0284c7;--sky-l:#e0f2fe;
+  --green:#22c55e;--green-l:#dcfce7;
+  --orange:#f97316;--red:#ef4444;
+  --bg:#f0f9ff;--card:#fff;
+  --text:#0f172a;--muted:#64748b;--border:#e2e8f0;
+  --r:12px;--sh:0 1px 3px rgba(0,0,0,.1);
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.wrap{max-width:640px;margin:0 auto;padding-bottom:88px}
+
+/* HEADER */
+.hdr{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--border);padding:11px 14px;display:flex;align-items:center;justify-content:space-between;box-shadow:var(--sh)}
+.hdr-l{display:flex;align-items:center;gap:9px}
+.back{width:34px;height:34px;border-radius:50%;border:1.5px solid var(--border);background:#fff;display:none;align-items:center;justify-content:center;cursor:pointer;font-size:17px;color:var(--muted)}
+.back.on{display:flex}
+.htitle{font-size:15px;font-weight:700;color:var(--sky-d)}
+.hsub{font-size:11px;color:var(--muted);margin-top:1px}
+.hdr-r{display:flex;gap:7px;align-items:center}
+.lbtn{padding:4px 13px;border-radius:20px;border:1.5px solid var(--sky);background:#fff;color:var(--sky);font-size:13px;font-weight:700;cursor:pointer;transition:all .2s}
+.lbtn:hover{background:var(--sky);color:#fff}
+.ibtn{width:34px;height:34px;border-radius:50%;border:1.5px solid var(--border);background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;transition:all .2s}
+.ibtn:hover{background:var(--sky-l)}
+.ibtn.on{background:var(--sky);border-color:var(--sky);color:#fff}
+
+/* EDIT BANNER */
+.ebanner{background:linear-gradient(135deg,#f97316,#f59e0b);color:#fff;padding:9px 14px;display:none;align-items:center;justify-content:space-between;font-size:13px;font-weight:600}
+.ebanner.on{display:flex}
+.ebanner-btn{background:rgba(255,255,255,.25);border:none;color:#fff;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer}
+
+/* HOME */
+.sec-title{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:16px 14px 8px}
+.pcard{background:#fff;border-radius:var(--r);margin:0 12px 10px;padding:15px;box-shadow:var(--sh);cursor:pointer;border:1.5px solid transparent;transition:all .2s;display:flex;align-items:center;gap:11px}
+.pcard:hover{border-color:var(--sky);box-shadow:0 4px 14px rgba(14,165,233,.18)}
+.picon{width:46px;height:46px;border-radius:11px;background:var(--sky-l);color:var(--sky-d);display:flex;align-items:center;justify-content:center;font-size:21px;flex-shrink:0}
+.pinfo{flex:1;min-width:0}
+.pname{font-size:15px;font-weight:600;margin-bottom:3px}
+.pdesc{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pmeta{display:flex;align-items:center;gap:8px;margin-top:6px}
+.pbadge{font-size:11px;padding:2px 8px;border-radius:20px;background:var(--sky-l);color:var(--sky-d);font-weight:500}
+.pbar{flex:1;height:4px;border-radius:2px;background:var(--border);overflow:hidden}
+.pbar-f{height:100%;background:var(--green);border-radius:2px;transition:width .3s}
+.pbar-t{font-size:11px;color:var(--muted);white-space:nowrap}
+.parrow{color:var(--muted);font-size:18px}
+.add-pcard{margin:0 12px 10px;padding:13px;border:2px dashed var(--border);border-radius:var(--r);display:flex;align-items:center;justify-content:center;gap:8px;color:var(--muted);font-size:14px;cursor:pointer;transition:all .2s;background:transparent;width:calc(100% - 24px)}
+.add-pcard:hover{border-color:var(--sky);color:var(--sky)}
+
+/* PROCESS VIEW */
+.pgbar{background:#fff;padding:13px 15px;border-bottom:1px solid var(--border)}
+.pgbar-top{display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px}
+.pgbar-lbl{font-weight:500}
+.pgbar-pct{font-weight:700;color:var(--sky-d)}
+.pgbar-track{height:8px;background:var(--border);border-radius:4px;overflow:hidden}
+.pgbar-fill{height:100%;background:linear-gradient(90deg,var(--sky),var(--green));border-radius:4px;transition:width .3s}
+.pgbar-time{font-size:11px;color:var(--muted);margin-top:5px;text-align:right}
+
+/* PHASE */
+.phase{margin:10px 12px 0}
+.ph-hdr{display:flex;align-items:center;gap:9px;padding:10px 12px;border-radius:var(--r) var(--r) 0 0;cursor:pointer;user-select:none}
+.ph-dot{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.5);flex-shrink:0}
+.ph-name{font-size:13px;font-weight:700;flex:1;color:#fff}
+.ph-cnt{font-size:12px;color:rgba(255,255,255,.75)}
+.ph-edit-btn{background:rgba(255,255,255,.22);border:none;color:#fff;padding:3px 8px;border-radius:6px;font-size:11px;cursor:pointer}
+.ph-chev{font-size:13px;color:rgba(255,255,255,.8);transition:transform .2s}
+.ph-chev.open{transform:rotate(180deg)}
+.ph-body{background:#fff;border-radius:0 0 var(--r) var(--r);overflow:hidden}
+.ph-body.closed{display:none}
+
+/* STEP */
+.step{padding:12px 13px;border-bottom:1px solid var(--border);transition:background .15s}
+.step:last-child{border-bottom:none}
+.step.done{background:#f0fdf4}
+.step-main{display:flex;align-items:flex-start;gap:10px;cursor:pointer}
+.chk{flex-shrink:0;width:26px;height:26px;border-radius:7px;border:2px solid var(--border);background:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;margin-top:1px;transition:all .15s}
+.step.done .chk{background:var(--green);border-color:var(--green);color:#fff}
+.sinfo{flex:1;min-width:0}
+.shdr{display:flex;align-items:flex-start;justify-content:space-between;gap:6px}
+.sname{font-size:14px;font-weight:500;line-height:1.4}
+.step.done .sname{color:var(--muted);text-decoration:line-through}
+.stime{flex-shrink:0;font-size:11px;padding:2px 7px;border-radius:12px;background:var(--sky-l);color:var(--sky-d);font-weight:500;margin-top:1px}
+.seq{font-size:11px;color:var(--muted);margin-top:3px}
+.ntoggle{font-size:11px;color:var(--sky);margin-top:5px;cursor:pointer;display:inline-flex;align-items:center;gap:3px;background:none;border:none;padding:0}
+.nbody{margin-top:8px;padding:10px;background:var(--bg);border-radius:8px;display:none}
+.nbody.on{display:block}
+.ni{font-size:12px;color:#334155;line-height:1.65;padding:2px 0 2px 13px;position:relative}
+.ni::before{content:'·';position:absolute;left:0;color:var(--sky)}
+.ni.w{color:#92400e;background:#fef3c7;border-radius:4px;padding:4px 8px 4px 22px;margin:3px 0}
+.ni.w::before{content:'⚠';left:5px;color:var(--orange)}
+.sactions{display:none;gap:6px;margin-top:8px}
+.step.em .sactions{display:flex}
+.se-btn{font-size:12px;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;background:var(--sky-l);color:var(--sky-d)}
+.sd-btn{font-size:12px;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;background:#fee2e2;color:#b91c1c}
+.add-step-row{padding:8px 13px;display:none}
+.add-step-row.on{display:block}
+.add-step-btn{width:100%;padding:8px;border-radius:8px;border:1.5px dashed var(--border);background:transparent;color:var(--muted);font-size:13px;cursor:pointer;transition:all .2s}
+.add-step-btn:hover{border-color:var(--sky);color:var(--sky)}
+.add-phase-btn{margin:10px 12px;padding:12px;border:2px dashed var(--border);border-radius:var(--r);display:none;align-items:center;justify-content:center;gap:8px;color:var(--muted);font-size:13px;cursor:pointer;transition:all .2s;background:transparent;width:calc(100% - 24px)}
+.add-phase-btn.on{display:flex}
+.add-phase-btn:hover{border-color:var(--sky);color:var(--sky)}
+
+/* MODAL */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:flex-end;justify-content:center}
+.overlay.on{display:flex}
+.modal{background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:640px;max-height:88vh;overflow-y:auto;padding:18px}
+.mhandle{width:34px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 14px}
+.mtitle{font-size:16px;font-weight:700;margin-bottom:14px}
+.fg{margin-bottom:13px}
+.flabel{font-size:13px;font-weight:600;color:var(--muted);margin-bottom:5px;display:block}
+.fi,.fta{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;color:var(--text);background:#fff;transition:border-color .2s}
+.fi:focus,.fta:focus{outline:none;border-color:var(--sky)}
+.fta{resize:vertical;min-height:90px;line-height:1.6}
+.fhint{font-size:11px;color:var(--muted);margin-top:3px}
+.mact{display:flex;gap:10px;margin-top:14px}
+.msave,.mcancel{flex:1;padding:12px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:all .2s}
+.msave{background:var(--sky);color:#fff}
+.msave:hover{background:var(--sky-d)}
+.mcancel{background:var(--bg);color:var(--muted)}
+.mcancel:hover{background:var(--border)}
+
+/* FAB */
+.fab-wrap{position:fixed;bottom:20px;right:20px;z-index:40;display:none;flex-direction:column;gap:9px;align-items:flex-end}
+.fab-wrap.on{display:flex}
+.fab{padding:11px 18px;border-radius:50px;border:none;font-size:14px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;box-shadow:0 4px 12px rgba(0,0,0,.15);transition:all .2s}
+.fab-r{background:#fff;color:var(--red);border:1.5px solid #fee2e2}
+.fab-r:hover{background:#fee2e2;transform:translateY(-1px)}
+
+/* EMPTY */
+.empty{text-align:center;padding:60px 20px;color:var(--muted)}
+.empty-icon{font-size:46px;margin-bottom:10px}
+.empty-t{font-size:15px;font-weight:500;margin-bottom:5px}
+.empty-s{font-size:13px}
+
+/* BOOKING */
+.bk-btn{display:inline-flex;align-items:center;gap:4px;margin-top:6px;font-size:12px;padding:4px 10px;border-radius:20px;border:1.5px dashed var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .2s}
+.bk-btn:hover{border-color:var(--sky);color:var(--sky)}
+.bk-btn.set{border-style:solid;border-color:var(--green);background:var(--green-l);color:#166534;font-weight:500}
+.bk-note-txt{font-size:11px;color:var(--muted);margin-top:2px;padding-left:2px}
+.bk-list{padding:0 12px 4px}
+.bk-item{background:#fff;border-radius:10px;padding:11px 13px;margin-bottom:8px;box-shadow:var(--sh);display:flex;align-items:flex-start;gap:10px}
+.bk-dot{width:8px;height:8px;border-radius:50%;background:var(--sky);flex-shrink:0;margin-top:5px}
+.bk-info{flex:1;min-width:0}
+.bk-time-txt{font-size:13px;font-weight:600;color:var(--sky-d)}
+.bk-step-nm{font-size:12px;color:var(--text);margin-top:2px}
+.bk-proc-nm{font-size:11px;color:var(--muted);margin-top:1px}
+.bk-clr{font-size:18px;color:var(--muted);cursor:pointer;padding:0 2px;background:none;border:none;flex-shrink:0;line-height:1}
+.bk-clr:hover{color:var(--red)}
+.no-bk{font-size:13px;color:var(--muted);text-align:center;padding:8px 0 4px}
+
+@media(min-width:641px){.modal{border-radius:20px;max-height:80vh;margin-bottom:20px}.overlay{align-items:center}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="ebanner" id="ebanner">
+    <span id="ebtxt">✏️ 编辑模式 — 点击步骤旁的按钮修改内容</span>
+    <button class="ebanner-btn" onclick="exitEdit()" id="doneBtn">完成</button>
+  </div>
+  <div class="hdr">
+    <div class="hdr-l">
+      <button class="back" id="backBtn" onclick="goHome()">←</button>
+      <div>
+        <div class="htitle" id="htitle">微纳工艺助手</div>
+        <div class="hsub" id="hsub">实验室工艺流程管理</div>
+      </div>
+    </div>
+    <div class="hdr-r">
+      <button class="lbtn" onclick="toggleLang()" id="lbtn">EN</button>
+      <button class="ibtn" id="editBtn" onclick="toggleEdit()" title="编辑">✏️</button>
+    </div>
+  </div>
+  <div id="homeView"></div>
+  <div id="procView" style="display:none"></div>
+</div>
+
+<div class="fab-wrap" id="fab">
+  <button class="fab fab-r" onclick="resetProg()"><span>↺</span><span id="rstTxt">重置进度</span></button>
+</div>
+
+<div class="overlay" id="overlay" onclick="overlayClick(event)">
+  <div class="modal" id="modal">
+    <div class="mhandle"></div>
+    <div class="mtitle" id="mtitle">编辑步骤</div>
+    <div id="mbody"></div>
+    <div class="mact">
+      <button class="mcancel" onclick="closeModal()" id="mcancel">取消</button>
+      <button class="msave" onclick="doSave()" id="msave">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── DEFAULT DATA ──────────────────────────────────────────────
+const DEF = [
+{
+  id:"p1", icon:"🔬",
+  name:{zh:"三层无磁加热片",en:"3-Layer Non-Magnetic Heater"},
+  description:{zh:"硼硅玻璃基底 · 三层 Ag 金属结构 · SiO₂ 绝缘与保护",en:"Borosilicate glass · Three Ag layers · SiO₂ insulation & passivation"},
+  phases:[
+    { id:"ph1", color:"#64748b",
+      name:{zh:"基底准备",en:"Substrate Prep"},
+      steps:[
+        { id:"s1_1", name:{zh:"基底清洗",en:"Substrate Cleaning"}, time:{zh:"约 20 min",en:"~20 min"},
+          equipment:{zh:"超声清洗机",en:"Ultrasonic cleaner"},
+          notes:[
+            {zh:"丙酮超声清洗 5 min，去除有机污染物",en:"Ultrasonic in acetone 5 min, remove organics"},
+            {zh:"异丙醇 (IPA) 超声清洗 5 min",en:"Ultrasonic in IPA 5 min"},
+            {zh:"去离子水冲洗 ×3",en:"Rinse with DI water ×3"},
+            {zh:"氮气枪吹干",en:"Blow dry with N₂ gun"},
+            {zh:"⚠ 全程戴手套，防止皮肤油脂污染基底",en:"⚠ Wear gloves throughout; prevent skin oil contamination"}
+          ]},
+        { id:"s1_2", name:{zh:"烘干脱水处理",en:"Dehydration Bake"}, time:{zh:"约 10 min",en:"~10 min"},
+          equipment:{zh:"热板 120°C",en:"Hotplate 120°C"},
+          notes:[
+            {zh:"热板 120°C 烘烤 10 min",en:"Bake at 120°C for 10 min"},
+            {zh:"去除表面残余水汽，提高膜层附着力",en:"Remove residual moisture; improve film adhesion"},
+            {zh:"⚠ 冷却至室温后再进行下一步",en:"⚠ Cool to room temperature before proceeding"}
+          ]}
+      ]},
+    { id:"ph2", color:"#3b82f6",
+      name:{zh:"第一金属层 M1 · Ag 400 nm",en:"Metal Layer 1 (M1 · Ag 400 nm)"},
+      steps:[
+        { id:"s2_1", name:{zh:"PECVD 沉积 SiO₂ 缓冲层 (400 nm)",en:"PECVD Deposit SiO₂ Buffer (400 nm)"}, time:{zh:"约 30 min",en:"~30 min"},
+          equipment:{zh:"PECVD 系统",en:"PECVD system"},
+          notes:[
+            {zh:"硼硅玻璃难以直接刻蚀，先沉积 SiO₂ 作为图形转移介质",en:"Borosilicate glass hard to etch directly; SiO₂ acts as pattern-transfer medium"},
+            {zh:"典型气体：SiH₄ + N₂O 或 TEOS + O₂，温度 200–300°C",en:"Typical gases: SiH₄+N₂O or TEOS+O₂; temp 200–300°C"},
+            {zh:"⚠ 沉积前检查腔室洁净度和气体流量参数",en:"⚠ Check chamber cleanliness and gas flow before deposition"}
+          ]},
+        { id:"s2_2", name:{zh:"旋涂光刻胶",en:"Photoresist Spin Coating"}, time:{zh:"约 10 min",en:"~10 min"},
+          equipment:{zh:"匀胶机（黄光区）",en:"Spin coater (yellow room)"},
+          notes:[
+            {zh:"在黄光区操作，避免意外曝光",en:"Work under yellow light to avoid unintended exposure"},
+            {zh:"转速约 4000 rpm，旋涂 30–60 s",en:"Spin at ~4000 rpm for 30–60 s"},
+            {zh:"确认匀胶均匀，无气泡，无边缘堆积",en:"Ensure uniform coating, no bubbles or edge bead"},
+            {zh:"⚠ 光刻胶需冷藏保存，使用前提前回温至室温（约 30 min）",en:"⚠ Store resist refrigerated; allow 30 min warm-up before use"}
+          ]},
+        { id:"s2_3", name:{zh:"前烘 (Soft Bake)",en:"Soft Bake"}, time:{zh:"约 5 min",en:"~5 min"},
+          equipment:{zh:"热板 90–100°C",en:"Hotplate 90–100°C"},
+          notes:[
+            {zh:"热板 90–100°C 烘烤 60–90 s",en:"Hotplate at 90–100°C for 60–90 s"},
+            {zh:"去除溶剂，提高光刻胶与基底的黏附性",en:"Remove solvent; improve adhesion"},
+            {zh:"⚠ 温度过高导致过度交联，影响显影",en:"⚠ Excessive temp causes over-crosslinking and poor development"}
+          ]},
+        { id:"s2_4", name:{zh:"对准曝光（掩模版 M1）",en:"Exposure (Mask M1)"}, time:{zh:"约 15 min",en:"~15 min"},
+          equipment:{zh:"光刻机（UV 曝光系统）",en:"Mask aligner (UV exposure system)"},
+          notes:[
+            {zh:"首层曝光无需与下层对准，确认掩模版方向正确",en:"No alignment needed for first layer; confirm mask orientation"},
+            {zh:"曝光剂量参考光刻胶规格（如 AZ5214 约 80 mJ/cm²）",en:"Dose per spec (e.g., AZ5214 ~80 mJ/cm²)"},
+            {zh:"⚠ 记录曝光时间和能量密度，方便后续重复",en:"⚠ Record exposure time and dose for reproducibility"}
+          ]},
+        { id:"s2_5", name:{zh:"显影",en:"Development"}, time:{zh:"约 10 min",en:"~10 min"},
+          equipment:{zh:"显影液、去离子水",en:"Developer solution, DI water"},
+          notes:[
+            {zh:"按比例配制显影液（如 AZ Developer 1:1 去离子水）",en:"Mix developer per spec (e.g., AZ Developer 1:1 DI water)"},
+            {zh:"显影 60–90 s，轻微搅动",en:"Develop 60–90 s with gentle agitation"},
+            {zh:"去离子水终止显影，N₂ 吹干",en:"DI water rinse to stop development; N₂ blow dry"},
+            {zh:"⚠ 边显影边检查，防止过显影导致图案损失",en:"⚠ Monitor under lamp; avoid over-development"}
+          ]},
+        { id:"s2_6", name:{zh:"显影效果检查",en:"Post-Development Inspection"}, time:{zh:"约 5 min",en:"~5 min"},
+          equipment:{zh:"光学显微镜",en:"Optical microscope"},
+          notes:[
+            {zh:"检查图案完整性、有无残胶、有无桥接",en:"Check pattern completeness; inspect for residue and bridging"},
+            {zh:"⚠ 若不合格，用丙酮去胶后重新制备",en:"⚠ If defective, strip with acetone and redo"}
+          ]},
+        { id:"s2_7", name:{zh:"SiO₂ 干法刻蚀 (RIE)",en:"SiO₂ Dry Etch (RIE)"}, time:{zh:"约 15 min",en:"~15 min"},
+          equipment:{zh:"RIE / ICP 刻蚀机",en:"RIE / ICP etcher"},
+          notes:[
+            {zh:"使用 CF₄ 或 CHF₃/O₂ 混合气体刻蚀 SiO₂ 400 nm",en:"Use CF₄ or CHF₃/O₂ to etch 400 nm SiO₂"},
+            {zh:"⚠ 注意终点检测，避免过刻蚀损伤玻璃基底",en:"⚠ Monitor etch endpoint; avoid over-etching into glass"}
+          ]},
+        { id:"s2_8", name:{zh:"DC 磁控溅射 Ag (400 nm)",en:"DC Magnetron Sputter Ag (400 nm)"}, time:{zh:"约 30 min",en:"~30 min"},
+          equipment:{zh:"磁控溅射系统",en:"DC magnetron sputtering system"},
+          notes:[
+            {zh:"溅射前预溅射清洁靶材 5 min（遮挡样品）",en:"Pre-sputter target 5 min with sample shielded"},
+            {zh:"工作气体：Ar，压强约 0.3–0.5 Pa",en:"Working gas: Ar, pressure ~0.3–0.5 Pa"},
+            {zh:"沉积速率约 10–20 nm/min",en:"Deposition rate ~10–20 nm/min"},
+            {zh:"⚠ 避免基底过热，可分段溅射并间歇冷却",en:"⚠ Avoid substrate overheating; consider staged deposition with cooling breaks"},
+            {zh:"⚠ 记录溅射功率、时间和压强",en:"⚠ Record sputtering power, time, and pressure"}
+          ]},
+        { id:"s2_9", name:{zh:"剥离 (Lift-off)",en:"Lift-off"}, time:{zh:"约 30–60 min",en:"~30–60 min"},
+          equipment:{zh:"丙酮、去离子水、移液枪",en:"Acetone, DI water, pipette"},
+          notes:[
+            {zh:"样品浸入丙酮静置 15–20 min",en:"Immerse in acetone for 15–20 min"},
+            {zh:"用移液枪轻轻冲洗辅助剥离",en:"Gently flush with pipette to assist lift-off"},
+            {zh:"去离子水冲洗，N₂ 吹干",en:"DI water rinse; N₂ blow dry"},
+            {zh:"⚠ 避免强超声，防止损伤金属图案边缘",en:"⚠ Avoid vigorous ultrasonication; can damage pattern edges"},
+            {zh:"若剥离困难，可将丙酮加热至 50°C 后重试",en:"If difficult, warm acetone to 50°C and retry"}
+          ]},
+        { id:"s2_10", name:{zh:"M1 层检查",en:"M1 Layer Inspection"}, time:{zh:"约 10 min",en:"~10 min"},
+          equipment:{zh:"光学显微镜、四探针仪",en:"Optical microscope, four-probe meter"},
+          notes:[
+            {zh:"显微镜检查线宽和图案完整性",en:"Check linewidth and pattern completeness"},
+            {zh:"测量方块电阻，验证导电性",en:"Measure sheet resistance to verify conductivity"},
+            {zh:"⚠ 拍照记录并与设计图对比",en:"⚠ Take photos and compare with design"}
+          ]}
+      ]},
+    { id:"ph3", color:"#f97316",
+      name:{zh:"绝缘层 1 + 过孔 · SiO₂ 470 nm",en:"Insulation Layer 1 + Vias · SiO₂ 470 nm"},
+      steps:[
+        { id:"s3_1", name:{zh:"PECVD 沉积 SiO₂ 绝缘层 (470 nm)",en:"PECVD Deposit SiO₂ Insulation (470 nm)"}, time:{zh:"约 35 min",en:"~35 min"},
+          equipment:{zh:"PECVD 系统",en:"PECVD system"},
+          notes:[
+            {zh:"均匀覆盖第一金属层，作为 M1/M2 之间的电气绝缘",en:"Uniformly cover M1; electrical insulation between M1 and M2"},
+            {zh:"⚠ 注意台阶覆盖质量，金属边缘处绝缘层不能过薄",en:"⚠ Check step coverage; thin spots at metal edges cause shorts"}
+          ]},
+        { id:"s3_2", name:{zh:"旋涂光刻胶",en:"Photoresist Spin Coating"}, time:{zh:"约 10 min",en:"~10 min"},
+          equipment:{zh:"匀胶机（黄光区）",en:"Spin coater (yellow room)"},
+          notes:[
+            {zh:"同 M1 光刻步骤，4000 rpm，30–60 s",en:"Same as M1; 4000 rpm, 30–60 s"},
+            {zh:"⚠ 表面已有 M1 台阶，确认匀胶均匀",en:"⚠ M1 topography present; ensure uniform coating over steps"}
+          ]},
+        { id:"s3_3", name:{zh:"前烘",en:"Soft Bake"}, time:{zh:"约 5 min",en:"~5 min"},
+          equipment:{zh:"热板 90–100°C",en:"Hotplate 90–100°C"},
+          notes:[{zh:"90–100°C，60–90 s",en:"90–100°C, 60–90 s"}]},
+        { id:"s3_4", name:{zh:"对准曝光（掩模版 M2 · 过孔图案）",en:"Exposure (Mask M2 · Via Pattern)"}, time:{zh:"约 15 min",en:"~15 min"},
+          equipment:{zh:"光刻机",en:"Mask aligner"},
+          notes:[
+            {zh:"⚠ 需与 M1 层对准，注意对准标记",en:"⚠ Must align to M1 layer; use alignment marks"},
+            {zh:"过孔图案通常较小，对准精度要求较高",en:"Via patterns are small; high alignment accuracy required"},
+            {zh:"⚠ 对准后检查误差，超过设计容差须重新对准",en:"⚠ Verify alignment error; redo if beyond design tolerance"}
+          ]},
+        { id:"s3_5", name:{zh:"显影",en:"Development"}, time:{zh:"约 10 min",en:"~10 min"},
+          equipment:{zh:"显影液、去离子水",en:"Developer, DI water"},
+          notes:[
+            {zh:"同 M1 显影，60–90 s",en:"Same as M1 development, 60–90 s"},
+            {zh:"⚠ 过孔尺寸小，防止显影不足（残胶堵孔）",en:"⚠ Via openings are small; avoid under-development (residue blocking vias)"}
+          ]},
+        { id:"s3_6", name:{zh:"SiO₂ 干法刻蚀（过孔）",en:"SiO₂ Dry Etch (Vias)"}, time:{zh:"约 15 min",en:"~15 min"},
+          equipment:{zh:"RIE / ICP 刻蚀机",en:"RIE / ICP etcher"},
+          notes:[
+            {zh:"刻蚀穿透 470 nm SiO₂，暴露 M1 金属",en:"Etch through 470 nm SiO₂ to expose M1 metal"},
+            {zh:"⚠ 严格控制刻蚀深度，过刻蚀会损伤 M1 银层",en:"⚠ Strictly control etch depth; over-etching damages M1 Ag"},
+            {zh:"建议先在小片样品上测试刻蚀速率",en:"Recommend testing etch rate on a dummy sample first"}
+          ]},
+        { id:"s3_7", name:{zh:"去除光刻胶",en:"Photoresist Removal"}, time:{zh:"约 10 min",en:"~10 min"},
+          equipment:{zh:"丙酮或等离子体去胶机",en:"Acetone or plasma asher"},
+          notes:[
+            {zh:"丙酮轻洗（避免超声损伤 M1 图案）或 O₂ 等离子体灰化 2–3 min",en:"Gentle acetone rinse (no ultrasonic) or O₂ plasma ash 2–3 min"},
+            {zh:"DI 水冲洗，N₂ 吹干",en:"DI water rinse; N₂ blow dry"}
+          ]}
+      ]},
+    { id:"ph4", color:"#8b5cf6",
+      name:{zh:"第二金属层 M2 · Ag 400 nm",en:"Metal Layer 2 (M2 · Ag 400 nm)"},
+      steps:[
+        { id:"s4_1", name:{zh:"旋涂光刻胶",en:"Photoresist Spin Coating"}, time:{zh:"约 10 min",en:"~10 min"},
+          equipment:{zh:"匀胶机（黄光区）",en:"Spin coater (yellow room)"},
+          notes:[
+            {zh:"同前，4000 rpm，30–60 s",en:"Same as before; 4000 rpm, 30–60 s"},
+            {zh:"⚠ 台阶更明显，可适当降速至 3000 rpm 提高台阶覆盖",en:"⚠ More pronounced topography; consider 3000 rpm for better step coverage"}
+          ]},
+        { id:"s4_2", name:{zh:"前烘",en:"Soft Bake"}, time:{zh:"约 5 min",en:"~5 min"},
+          equipment:{zh:"热板 90–100°C",en:"Hotplate 90–100°C"},
+          notes:[{zh:"90–100°C，60–90 s",en:"90–100°C, 60–90 s"}]},
+        { id:"s4_3", name:{zh:"对准曝光（掩模版 M3）",en:"Exposure (Mask M3)"}, time:{zh:"约 15 min",en:"~15 min"},
+          equipment:{zh:"光刻机",en:"Mask aligner"},
+          notes:[
+            {zh:"⚠ 需精确对准 M1 和过孔，对准精度要求较高",en:"⚠ Precise alignment to M1 and vias; high accuracy required"},
+            {zh:"确认 M3 电气连接图案与过孔位置对应",en:"Confirm M3 connections correspond to via positions"}
+          ]},
+        { id:"s4_4", name:{zh:"显影",en:"Development"}, time:{zh:"约 10 min",en:"~10 min"},
+          equipment:{zh:"显影液、去离子水",en:"Developer, DI water"},
+          notes:[{zh:"同前，60–90 s",en:"Same as before, 60–90 s"}]},
+        { id:"s4_5", name:{zh:"DC 磁控溅射 Ag (400 nm)",en:"DC Magnetron Sputter Ag (400 nm)"}, time:{zh:"约 30 min",en:"~30 min"},
+          equipment:{zh:"磁控溅射系统",en:"DC magnetron sputtering system"},
+          notes:[
+            {zh:"同 M1 溅射参数，Ar 气，0.3–0.5 Pa",en:"Same as M1: Ar gas, 0.3–0.5 Pa"},
+            {zh:"⚠ 确认过孔区域金属填充良好",en:"⚠ Verify metal fills vias properly"}
+          ]},
+        { id:"s4_6", name:{zh:"剥离 (Lift-off)",en:"Lift-off"}, time:{zh:"约 30–60 min",en:"~30–60 min"},
+          equipment:{zh:"丙酮、去离子水",en:"Acetone, DI water"},
+          notes:[
+            {zh:"同 M1 剥离步骤",en:"Same as M1 lift-off"},
+            {zh:"⚠ 台阶处剥离可能更难，可适当延长浸泡时间",en:"⚠ Lift-off at steps may be harder; allow longer soak time"}
+          ]},
+        { id:"s4_7", name:{zh:"M2 层检查",en:"M2 Layer Inspection"}, time:{zh:"约 10 min",en:"~10 min"},
+          equipment:{zh:"光学显微镜、电阻仪",en:"Optical microscope, resistance meter"},
+          notes:[
+            {zh:"检查 M1–M2 过孔连接是否良好",en:"Check M1–M2 via connections"},
+            {zh:"测量 M1 与 M2 间绝缘电阻，确认无短路",en:"Measure insulation resistance between M1 and M2"},
+            {zh:"⚠ 拍照记录",en:"⚠ Take photos for records"}
+          ]}
+      ]},
+    { id:"ph5", color:"#f97316",
+      name:{zh:"绝缘层 2 + 过孔 · SiO₂ ~400 nm",en:"Insulation Layer 2 + Vias · SiO₂ ~400 nm"},
+      steps:[
+        { id:"s5_1", name:{zh:"PECVD 沉积 SiO₂ 绝缘层 2 (~400 nm)",en:"PECVD Deposit SiO₂ Insulation 2 (~400 nm)"}, time:{zh:"约 30 min",en:"~30 min"},
+          equipment:{zh:"PECVD 系统",en:"PECVD system"},
+          notes:[
+            {zh:"M2/M3 之间的电气绝缘层",en:"Electrical insulation between M2 and M3"},
+            {zh:"⚠ 同第一绝缘层，注意台阶覆盖质量",en:"⚠ Same as insulation layer 1; check step coverage"}
+          ]},
+        { id:"s5_2", name:{zh:"旋涂光刻胶",en:"Photoresist Spin Coating"}, time:{zh:"约 10 min",en:"~10 min"},
+          equipment:{zh:"匀胶机（黄光区）",en:"Spin coater (yellow room)"},
+          notes:[{zh:"同前层步骤",en:"Same as previous"}]},
+        { id:"s5_3", name:{zh:"前烘",en:"Soft Bake"}, time:{zh:"约 5 min",en:"~5 min"},
+          equipment:{zh:"热板 90–100°C",en:"Hotplate 90–100°C"},
+          notes:[{zh:"90–100°C，60–90 s",en:"90–100°C, 60–90 s"}]},
+        { id:"s5_4", name:{zh:"对准曝光（掩模版 M4 · 过孔 2）",en:"Exposure (Mask M4 · Via 2)"}, time:{zh:"约 15 min",en:"~15 min"},
+          equipment:{zh:"光刻机",en:"Mask aligner"},
+          notes:[
+            {zh:"⚠ 需与 M1、M2 层同时对准",en:"⚠ Must align to both M1 and M2 layers"}
+          ]},
+        { id:"s5_5", name:{zh:"显影",en:"Development"}, time:{zh:"约 10 min",en:"~10 min"},
+          equipment:{zh:"显影液、去离子水",en:"Developer, DI water"},
+          notes:[{zh:"同前，60–90 s",en:"Same as before, 60–90 s"}]},
+        { id:"s5_6", name:{zh:"SiO₂ 干法刻蚀（过孔 2）",en:"SiO₂ Dry Etch (Via 2)"}, time:{zh:"约 15 min",en:"~15 min"},
+          equipment:{zh:"RIE / ICP 刻蚀机",en:"RIE / ICP etcher"},
+          notes:[
+            {zh:"刻蚀第二绝缘层，暴露 M2 金属表面",en:"Etch second insulation layer to expose M2 surface"},
+            {zh:"⚠ 同前层，严格控制刻蚀深度",en:"⚠ Same caution as before; strictly control etch depth"}
+          ]},
+        { id:"s5_7", name:{zh:"去除光刻胶",en:"Photoresist Removal"}, time:{zh:"约 10 min",en:"~10 min"},
+          equipment:{zh:"丙酮或等离子体去胶机",en:"Acetone or plasma asher"},
+          notes:[{zh:"丙酮轻洗或 O₂ 灰化，DI 水冲洗，N₂ 吹干",en:"Gentle acetone or O₂ ash; DI rinse; N₂ dry"}]}
+      ]},
+    { id:"ph6", color:"#06b6d4",
+      name:{zh:"第三金属层 M3 · Ag 400 nm",en:"Metal Layer 3 (M3 · Ag 400 nm)"},
+      steps:[
+        { id:"s6_1", name:{zh:"旋涂光刻胶",en:"Photoresist Spin Coating"}, time:{zh:"约 10 min",en:"~10 min"},
+          equipment:{zh:"匀胶机（黄光区）",en:"Spin coater (yellow room)"},
+          notes:[
+            {zh:"同前层步骤",en:"Same as previous"},
+            {zh:"⚠ 此时基底台阶最高，可适当降速或选用台阶覆盖更好的光刻胶",en:"⚠ Highest topography at this point; consider lower spin speed or better step-coverage resist"}
+          ]},
+        { id:"s6_2", name:{zh:"前烘",en:"Soft Bake"}, time:{zh:"约 5 min",en:"~5 min"},
+          equipment:{zh:"热板 90–100°C",en:"Hotplate 90–100°C"},
+          notes:[{zh:"90–100°C，60–90 s",en:"90–100°C, 60–90 s"}]},
+        { id:"s6_3", name:{zh:"对准曝光（掩模版 M5）",en:"Exposure (Mask M5)"}, time:{zh:"约 15 min",en:"~15 min"},
+          equipment:{zh:"光刻机",en:"Mask aligner"},
+          notes:[
+            {zh:"⚠ 全程对准要求最高，仔细检查所有方向的对准误差",en:"⚠ Highest alignment requirements so far; check all directions carefully"}
+          ]},
+        { id:"s6_4", name:{zh:"显影",en:"Development"}, time:{zh:"约 10 min",en:"~10 min"},
+          equipment:{zh:"显影液、去离子水",en:"Developer, DI water"},
+          notes:[{zh:"同前，60–90 s",en:"Same as before, 60–90 s"}]},
+        { id:"s6_5", name:{zh:"DC 磁控溅射 Ag (400 nm)",en:"DC Magnetron Sputter Ag (400 nm)"}, time:{zh:"约 30 min",en:"~30 min"},
+          equipment:{zh:"磁控溅射系统",en:"DC magnetron sputtering system"},
+          notes:[
+            {zh:"同 M1/M2 溅射参数",en:"Same parameters as M1/M2"},
+            {zh:"⚠ 最后一层金属，此次沉积质量直接影响最终器件性能",en:"⚠ Final metal layer; quality directly impacts device performance"}
+          ]},
+        { id:"s6_6", name:{zh:"剥离 (Lift-off)",en:"Lift-off"}, time:{zh:"约 30–60 min",en:"~30–60 min"},
+          equipment:{zh:"丙酮、去离子水",en:"Acetone, DI water"},
+          notes:[
+            {zh:"同前层剥离步骤",en:"Same as previous lift-off"},
+            {zh:"⚠ 台阶最复杂，可能需要更长浸泡时间",en:"⚠ Most complex topography; may need longer soak time"}
+          ]},
+        { id:"s6_7", name:{zh:"M3 层检查",en:"M3 Layer Inspection"}, time:{zh:"约 10 min",en:"~10 min"},
+          equipment:{zh:"光学显微镜、电阻仪",en:"Optical microscope, resistance meter"},
+          notes:[
+            {zh:"检查三层金属间过孔连接，测量各层电阻",en:"Check via connections across all three layers; measure resistance of each"},
+            {zh:"⚠ 全面电气测试，确认无短路或断路",en:"⚠ Full electrical test; confirm no shorts or open circuits"}
+          ]}
+      ]},
+    { id:"ph7", color:"#22c55e",
+      name:{zh:"保护层 + 焊盘开窗",en:"Protective Layer + Bond Pad Opening"},
+      steps:[
+        { id:"s7_1", name:{zh:"PECVD 沉积 SiO₂ 保护层 (~300 nm)",en:"PECVD Deposit SiO₂ Passivation (~300 nm)"}, time:{zh:"约 25 min",en:"~25 min"},
+          equipment:{zh:"PECVD 系统",en:"PECVD system"},
+          notes:[
+            {zh:"防止银加热线被空气氧化（Ag 氧化后电阻显著增大）",en:"Prevents Ag heating wires from oxidizing (oxidation significantly increases resistance)"},
+            {zh:"⚠ 确保均匀无针孔覆盖，尤其是金属图案边缘",en:"⚠ Ensure pinhole-free coverage, especially at metal pattern edges"}
+          ]},
+        { id:"s7_2", name:{zh:"旋涂光刻胶",en:"Photoresist Spin Coating"}, time:{zh:"约 10 min",en:"~10 min"},
+          equipment:{zh:"匀胶机（黄光区）",en:"Spin coater (yellow room)"},
+          notes:[{zh:"同前层步骤",en:"Same as previous"}]},
+        { id:"s7_3", name:{zh:"前烘",en:"Soft Bake"}, time:{zh:"约 5 min",en:"~5 min"},
+          equipment:{zh:"热板 90–100°C",en:"Hotplate 90–100°C"},
+          notes:[{zh:"90–100°C，60–90 s",en:"90–100°C, 60–90 s"}]},
+        { id:"s7_4", name:{zh:"对准曝光（掩模版 M6 · 焊盘图案）",en:"Exposure (Mask M6 · Bond Pad Pattern)"}, time:{zh:"约 15 min",en:"~15 min"},
+          equipment:{zh:"光刻机",en:"Mask aligner"},
+          notes:[
+            {zh:"焊盘区域开窗，暴露金属用于引线键合",en:"Open windows over bond pads to expose metal for wire bonding"},
+            {zh:"⚠ 焊盘开窗位置必须精确落在金属焊盘上",en:"⚠ Pad openings must precisely land on metal pads"}
+          ]},
+        { id:"s7_5", name:{zh:"显影",en:"Development"}, time:{zh:"约 10 min",en:"~10 min"},
+          equipment:{zh:"显影液、去离子水",en:"Developer, DI water"},
+          notes:[{zh:"同前，60–90 s",en:"Same as before, 60–90 s"}]},
+        { id:"s7_6", name:{zh:"SiO₂ 干法刻蚀（暴露焊盘）",en:"SiO₂ Dry Etch (Expose Bond Pads)"}, time:{zh:"约 15 min",en:"~15 min"},
+          equipment:{zh:"RIE / ICP 刻蚀机",en:"RIE / ICP etcher"},
+          notes:[
+            {zh:"刻蚀保护层 SiO₂，暴露焊盘金属",en:"Etch through passivation SiO₂ to expose bond pad metal"},
+            {zh:"⚠ 控制刻蚀深度，避免过刻蚀损伤焊盘金属",en:"⚠ Control etch depth; avoid over-etching bond pad metal"}
+          ]},
+        { id:"s7_7", name:{zh:"去除光刻胶",en:"Photoresist Removal"}, time:{zh:"约 10 min",en:"~10 min"},
+          equipment:{zh:"丙酮或等离子体去胶机",en:"Acetone or plasma asher"},
+          notes:[{zh:"丙酮轻洗或 O₂ 灰化，DI 水冲洗，N₂ 吹干",en:"Gentle acetone or O₂ ash; DI rinse; N₂ dry"}]},
+        { id:"s7_8", name:{zh:"最终清洗与全面检查",en:"Final Cleaning & Full Inspection"}, time:{zh:"约 20 min",en:"~20 min"},
+          equipment:{zh:"显微镜、电阻仪",en:"Microscope, resistance meter"},
+          notes:[
+            {zh:"IPA 轻洗 → DI 水冲洗 → N₂ 吹干",en:"IPA gentle rinse → DI water → N₂ dry"},
+            {zh:"测量各加热线圈总电阻，与设计值对比",en:"Measure total resistance of each heating coil vs. design values"},
+            {zh:"显微镜全面检查所有金属线条和焊盘",en:"Full microscope inspection of all metal lines and bond pads"},
+            {zh:"⚠ 拍照记录所有关键区域，建立工艺档案",en:"⚠ Document all critical areas photographically; build process records"},
+            {zh:"恭喜！三层无磁加热片制备完成 🎉",en:"Congratulations! Three-layer non-magnetic heater chip is complete 🎉"}
+          ]}
+      ]}
+  ]
+}
+];
+
+// ── STATE ─────────────────────────────────────────────────────
+let lang = 'zh';
+let curPid = null;
+let editMode = false;
+let _save = null;
+
+let db = (() => {
+  try {
+    const s = localStorage.getItem('mf_db');
+    if (s) { const p = JSON.parse(s); if (p.processes?.length) { if(!p.bookings)p.bookings={}; return p; } }
+  } catch(e) {}
+  return { processes: JSON.parse(JSON.stringify(DEF)), progress: {}, bookings: {} };
+})();
+
+function save() { localStorage.setItem('mf_db', JSON.stringify(db)); }
+function prog(pid) { return db.progress[pid] || {}; }
+function totalSteps(p) { return p.phases.reduce((s,ph)=>s+ph.steps.length,0); }
+function doneSteps(pid,p) { const g=prog(pid); return p.phases.reduce((s,ph)=>s+ph.steps.filter(st=>g[st.id]).length,0); }
+function txt(o) { if (!o) return ''; if (typeof o==='string') return o; return o[lang]||o.zh||''; }
+
+function timeTotal(p) {
+  let t=0;
+  p.phases.forEach(ph=>ph.steps.forEach(s=>{
+    const str=s.time?.zh||'';
+    const m1=str.match(/(\d+)[^\d]+(\d+)/);
+    if(m1) t+=(+m1[1]+ +m1[2])/2;
+    else { const m2=str.match(/(\d+)/); if(m2) t+= +m2[1]; }
+  }));
+  const h=Math.floor(t/60), m=Math.round(t%60);
+  return lang==='zh'
+    ? (h>0?`约 ${h} h ${m?m+'min':''}`:`约 ${t} min`)
+    : (h>0?`~${h}h ${m?m+'min':''}`:`~${t} min`);
+}
+
+// ── I18N ─────────────────────────────────────────────────────
+const T = {
+  appT:{zh:'微纳工艺助手',en:'MicroFab Assistant'},
+  appS:{zh:'实验室工艺流程管理',en:'Cleanroom Process Manager'},
+  listT:{zh:'工艺流程',en:'Process Library'},
+  addP:{zh:'+ 添加新工艺',en:'+ Add New Process'},
+  steps:{zh:'步',en:'steps'},
+  prog:{zh:'进度',en:'Progress'},
+  totalT:{zh:'总工时',en:'Total Time'},
+  viewN:{zh:'注意事项',en:'Notes'},
+  hideN:{zh:'收起',en:'Hide'},
+  editM:{zh:'✏️ 编辑模式 — 点击步骤旁按钮修改',en:'✏️ Edit Mode — Use buttons to modify steps'},
+  done:{zh:'完成',en:'Done'},
+  editS:{zh:'编辑步骤',en:'Edit Step'},
+  addS:{zh:'添加步骤',en:'Add Step'},
+  addPh:{zh:'+ 添加新阶段',en:'+ Add New Phase'},
+  editPh:{zh:'编辑阶段',en:'Edit Phase'},
+  fName:{zh:'步骤名称',en:'Step Name'},
+  fTime:{zh:'预计时间',en:'Est. Time'},
+  fEquip:{zh:'所需设备',en:'Equipment'},
+  fNotes:{zh:'注意事项（每行一条，⚠ 开头为警告）',en:'Notes (one per line; ⚠ prefix = warning)'},
+  sv:{zh:'保存',en:'Save'},
+  cancel:{zh:'取消',en:'Cancel'},
+  del:{zh:'删除',en:'Delete'},
+  edit:{zh:'编辑',en:'Edit'},
+  addSBtn:{zh:'+ 在此阶段添加步骤',en:'+ Add step to this phase'},
+  rst:{zh:'重置进度',en:'Reset Progress'},
+  rstQ:{zh:'确认重置所有进度？此操作不可撤销。',en:'Reset all progress? Cannot be undone.'},
+  delSQ:{zh:'确认删除此步骤？',en:'Delete this step?'},
+  phN:{zh:'阶段名称',en:'Phase Name'},
+  phC:{zh:'主题颜色',en:'Theme Color'},
+  pName:{zh:'工艺名称',en:'Process Name'},
+  pDesc:{zh:'工艺描述',en:'Description'},
+  pIcon:{zh:'图标（Emoji）',en:'Icon (Emoji)'},
+  empty:{zh:'还没有工艺流程',en:'No processes yet'},
+  emptyS:{zh:'点击下方按钮添加',en:'Click below to add one'},
+  delPh:{zh:'删除此阶段',en:'Delete this phase'},
+  bkTitle:{zh:'近期预约',en:'Upcoming Bookings'},
+  bkBtn:{zh:'📅 预约台子',en:'📅 Book Equipment'},
+  bkSet:{zh:'已预约',en:'Booked'},
+  bkModal:{zh:'预约设备时间',en:'Book Equipment Slot'},
+  bkDt:{zh:'预约时间',en:'Date & Time'},
+  bkNote:{zh:'备注（可选）',en:'Note (optional)'},
+  bkClear:{zh:'取消预约',en:'Clear Booking'},
+  bkNone:{zh:'暂无预约',en:'No upcoming bookings'},
+  bkNotePlh:{zh:'如：需要老师在场、提前联系管理员',en:'e.g., Notify lab manager, bring sample'},
+};
+function t(k) { return (T[k]||{})[lang]||k; }
+
+function toggleLang() {
+  lang = lang==='zh'?'en':'zh';
+  document.getElementById('lbtn').textContent = lang==='zh'?'EN':'中';
+  render();
+}
+
+// ── RENDER ───────────────────────────────────────────────────
+function render() {
+  if (curPid) renderProc(); else renderHome();
+  // header
+  document.getElementById('htitle').textContent = t('appT');
+  document.getElementById('hsub').textContent = curPid
+    ? txt(db.processes.find(p=>p.id===curPid)?.name)
+    : t('appS');
+  document.getElementById('backBtn').classList.toggle('on', !!curPid);
+  document.getElementById('editBtn').classList.toggle('on', editMode);
+  document.getElementById('ebanner').classList.toggle('on', editMode);
+  document.getElementById('ebtxt').textContent = t('editM');
+  document.getElementById('doneBtn').textContent = t('done');
+  document.getElementById('homeView').style.display = curPid?'none':'block';
+  document.getElementById('procView').style.display = curPid?'block':'none';
+  document.getElementById('fab').classList.toggle('on', !!(curPid && !editMode));
+  document.getElementById('rstTxt').textContent = t('rst');
+}
+
+function formatDt(dtStr) {
+  if (!dtStr) return '';
+  const d = new Date(dtStr);
+  const pad = n => String(n).padStart(2,'0');
+  if (lang === 'zh')
+    return `${d.getMonth()+1}月${d.getDate()}日 ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${d.getMonth()+1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function getUpcoming() {
+  const now = Date.now();
+  const items = [];
+  Object.entries(db.bookings||{}).forEach(([sid, bk]) => {
+    if (!bk.dt) return;
+    const dt = new Date(bk.dt).getTime();
+    // find step info
+    let stepName='', procName='', procId='';
+    db.processes.forEach(p => p.phases.forEach(ph => ph.steps.forEach(s => {
+      if (s.id === sid) { stepName=txt(s.name); procName=txt(p.name); procId=p.id; }
+    })));
+    items.push({ sid, dt, dtStr:bk.dt, note:bk.note||'', stepName, procName, procId });
+  });
+  return items.sort((a,b)=>a.dt-b.dt);
+}
+
+function renderHome() {
+  const ps = db.processes;
+  // upcoming bookings
+  const upcoming = getUpcoming();
+  let h = `<div class="sec-title">${t('bkTitle')}</div><div class="bk-list">`;
+  if (!upcoming.length) {
+    h += `<div class="no-bk">${t('bkNone')}</div>`;
+  } else {
+    upcoming.forEach(item => {
+      const past = item.dt < Date.now();
+      h += `<div class="bk-item" style="${past?'opacity:.5':''}">
+        <div class="bk-dot" style="background:${past?'var(--muted)':'var(--sky)'}"></div>
+        <div class="bk-info">
+          <div class="bk-time-txt">${formatDt(item.dtStr)}${past?' · 已过期':''}</div>
+          <div class="bk-step-nm">${item.stepName}</div>
+          <div class="bk-proc-nm">${item.procName}${item.note?'　· '+item.note:''}</div>
+        </div>
+        <button class="bk-clr" onclick="clearBooking('${item.sid}')" title="取消预约">×</button>
+      </div>`;
+    });
+  }
+  h += `</div>`;
+
+  h += `<div class="sec-title">${t('listT')}</div>`;
+  if (!ps.length) h += `<div class="empty"><div class="empty-icon">🔬</div><div class="empty-t">${t('empty')}</div><div class="empty-s">${t('emptyS')}</div></div>`;
+  ps.forEach(p => {
+    const tot=totalSteps(p), dn=doneSteps(p.id,p), pct=tot?Math.round(dn/tot*100):0;
+    h += `<div class="pcard" onclick="openProc('${p.id}')">
+      <div class="picon">${p.icon||'🔬'}</div>
+      <div class="pinfo">
+        <div class="pname">${txt(p.name)}</div>
+        <div class="pdesc">${txt(p.description)}</div>
+        <div class="pmeta">
+          <span class="pbadge">${tot} ${t('steps')}</span>
+          <div class="pbar"><div class="pbar-f" style="width:${pct}%"></div></div>
+          <span class="pbar-t">${dn}/${tot}</span>
+        </div>
+      </div>
+      <div class="parrow">›</div>
+    </div>`;
+  });
+  if (editMode) h += `<button class="add-pcard" onclick="openAddProcModal()">${t('addP')}</button>`;
+  document.getElementById('homeView').innerHTML = h;
+}
+
+function renderProc() {
+  const p = db.processes.find(x=>x.id===curPid);
+  if (!p) return;
+  const tot=totalSteps(p), dn=doneSteps(curPid,p), pct=tot?Math.round(dn/tot*100):0;
+  const g = prog(curPid);
+
+  let h = `<div class="pgbar">
+    <div class="pgbar-top"><span class="pgbar-lbl">${t('prog')}</span><span class="pgbar-pct">${dn} / ${tot} ${t('steps')} (${pct}%)</span></div>
+    <div class="pgbar-track"><div class="pgbar-fill" style="width:${pct}%"></div></div>
+    <div class="pgbar-time">${t('totalT')}：${timeTotal(p)}</div>
+  </div>`;
+
+  p.phases.forEach(ph => {
+    const phDn = ph.steps.filter(s=>g[s.id]).length;
+    const isOpen = !ph.collapsed;
+    h += `<div class="phase">
+      <div class="ph-hdr" style="background:${ph.color}" onclick="togglePhase('${ph.id}')">
+        <div class="ph-dot"></div>
+        <div class="ph-name">${txt(ph.name)}</div>
+        <div class="ph-cnt">${phDn}/${ph.steps.length}</div>
+        ${editMode?`<button class="ph-edit-btn" onclick="event.stopPropagation();openEditPhModal('${ph.id}')">${t('editPh')}</button>`:''}
+        <span class="ph-chev ${isOpen?'open':''}">▼</span>
+      </div>
+      <div class="ph-body ${isOpen?'':'closed'}">`;
+
+    ph.steps.forEach((s,i) => {
+      const done = !!g[s.id];
+      const hasN = s.notes?.length>0;
+      h += `<div class="step ${done?'done':''} ${editMode?'em':''}" id="st_${s.id}">
+        <div class="step-main" onclick="toggleStep('${s.id}')">
+          <div class="chk">${done?'✓':''}</div>
+          <div class="sinfo">
+            <div class="shdr">
+              <div class="sname">${i+1}. ${txt(s.name)}</div>
+              <span class="stime">${txt(s.time)}</span>
+            </div>
+            ${txt(s.equipment)?`<div class="seq">📍 ${txt(s.equipment)}</div>`:''}
+          </div>
+        </div>
+        ${(() => {
+          const bk = (db.bookings||{})[s.id];
+          if (bk?.dt) {
+            return `<button class="bk-btn set" onclick="openBookingModal('${s.id}')">📅 ${formatDt(bk.dt)}</button>
+            ${bk.note?`<div class="bk-note-txt">备注：${bk.note}</div>`:''}`;
+          }
+          return `<button class="bk-btn" onclick="openBookingModal('${s.id}')">${t('bkBtn')}</button>`;
+        })()}`;
+      if (hasN) {
+        h += `<button class="ntoggle" onclick="toggleNotes('${s.id}')">
+          <span>${s._no?'▲':'▶'}</span>${s._no?t('hideN'):t('viewN')} (${s.notes.length})
+        </button>
+        <div class="nbody ${s._no?'on':''}" id="nb_${s.id}">`;
+        s.notes.forEach(n => {
+          const tx = txt(n);
+          const isW = tx.startsWith('⚠');
+          h += `<div class="ni ${isW?'w':''}">${tx.replace(/^⚠\s*/,'')}</div>`;
+        });
+        h += `</div>`;
+      }
+      h += `<div class="sactions">
+        <button class="se-btn" onclick="openEditStepModal('${s.id}')">${t('edit')}</button>
+        <button class="sd-btn" onclick="delStep('${ph.id}','${s.id}')">${t('del')}</button>
+      </div></div>`;
+    });
+
+    h += `<div class="add-step-row ${editMode?'on':''}">
+      <button class="add-step-btn" onclick="openAddStepModal('${ph.id}')">${t('addSBtn')}</button>
+    </div></div></div>`;
+  });
+
+  if (editMode) h += `<button class="add-phase-btn on" onclick="openAddPhModal()">${t('addPh')}</button>`;
+  document.getElementById('procView').innerHTML = h;
+}
+
+// ── NAVIGATION ───────────────────────────────────────────────
+function openProc(id) { curPid=id; render(); scrollTo(0,0); }
+function goHome() { curPid=null; editMode=false; render(); scrollTo(0,0); }
+
+// ── STEP ACTIONS ─────────────────────────────────────────────
+function toggleStep(sid) {
+  if (editMode) return;
+  const g = prog(curPid);
+  g[sid] = !g[sid];
+  db.progress[curPid] = g;
+  save(); render();
+}
+function togglePhase(pid) {
+  const p = db.processes.find(x=>x.id===curPid);
+  const ph = p?.phases.find(x=>x.id===pid);
+  if (ph) { ph.collapsed=!ph.collapsed; save(); render(); }
+}
+function toggleNotes(sid) {
+  let st=null;
+  db.processes.forEach(p=>p.phases.forEach(ph=>ph.steps.forEach(s=>{if(s.id===sid)st=s;})));
+  if(st){st._no=!st._no;render();}
+}
+function resetProg() {
+  if(confirm(t('rstQ'))){db.progress[curPid]={};save();render();}
+}
+
+// ── BOOKING ──────────────────────────────────────────────────
+function openBookingModal(sid) {
+  if (!db.bookings) db.bookings = {};
+  const bk = db.bookings[sid] || {};
+  // default to tomorrow 9:00
+  const defDt = (() => {
+    const d = new Date(); d.setDate(d.getDate()+1); d.setHours(9,0,0,0);
+    return d.toISOString().slice(0,16);
+  })();
+  const body = `
+    <div class="fg">
+      <label class="flabel">${t('bkDt')}</label>
+      <input class="fi" type="datetime-local" id="bk_dt" value="${bk.dt||defDt}">
+    </div>
+    <div class="fg">
+      <label class="flabel">${t('bkNote')}</label>
+      <input class="fi" id="bk_note" placeholder="${t('bkNotePlh')}" value="${bk.note||''}">
+    </div>
+    ${bk.dt?`<button onclick="clearBooking('${sid}');closeModal()" style="width:100%;padding:10px;border-radius:8px;border:none;background:#fee2e2;color:#b91c1c;font-size:13px;cursor:pointer;margin-bottom:4px">${t('bkClear')}</button>`:''}
+  `;
+  openModal(t('bkModal'), body, () => {
+    const dt = document.getElementById('bk_dt').value;
+    if (!dt) return;
+    db.bookings[sid] = { dt, note: document.getElementById('bk_note').value.trim() };
+    save(); closeModal(); render();
+  });
+}
+
+function clearBooking(sid) {
+  if (!db.bookings) return;
+  delete db.bookings[sid];
+  save(); render();
+}
+
+// ── EDIT MODE ────────────────────────────────────────────────
+function toggleEdit() { editMode=!editMode; render(); }
+function exitEdit() { editMode=false; render(); }
+
+function delStep(phid,sid) {
+  if(!confirm(t('delSQ')))return;
+  const p=db.processes.find(x=>x.id===curPid);
+  const ph=p?.phases.find(x=>x.id===phid);
+  if(ph){ph.steps=ph.steps.filter(s=>s.id!==sid);save();render();}
+}
+
+// ── MODAL ────────────────────────────────────────────────────
+const COLORS=['#64748b','#3b82f6','#f97316','#8b5cf6','#06b6d4','#22c55e','#ef4444','#f59e0b'];
+
+function openModal(title,body,onSave) {
+  document.getElementById('mtitle').textContent=title;
+  document.getElementById('mbody').innerHTML=body;
+  document.getElementById('msave').textContent=t('sv');
+  document.getElementById('mcancel').textContent=t('cancel');
+  document.getElementById('overlay').classList.add('on');
+  _save=onSave;
+}
+function closeModal() { document.getElementById('overlay').classList.remove('on'); _save=null; }
+function overlayClick(e) { if(e.target===document.getElementById('overlay'))closeModal(); }
+function doSave() { if(_save)_save(); }
+function n2arr(tx) { return tx.split('\n').map(l=>l.trim()).filter(l=>l).map(l=>({zh:l,en:l})); }
+function arr2n(arr) { return (arr||[]).map(n=>n.zh||n).join('\n'); }
+function findStep(sid) {
+  let r=null;
+  db.processes.forEach(p=>p.phases.forEach(ph=>ph.steps.forEach(s=>{if(s.id===sid)r=s;})));
+  return r;
+}
+
+function colorPicker(sel) {
+  return `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">
+    ${COLORS.map(c=>`<span onclick="document.getElementById('fc').value='${c}';this.parentNode.querySelectorAll('span').forEach(x=>x.style.outline='none');this.style.outline='3px solid #0ea5e9'" style="width:28px;height:28px;border-radius:50%;background:${c};cursor:pointer;outline:${c===sel?'3px solid #0ea5e9':'none'}"></span>`).join('')}
+  </div><input type="hidden" id="fc" value="${sel}">`;
+}
+
+function openEditStepModal(sid) {
+  const s=findStep(sid);if(!s)return;
+  openModal(t('editS'),`
+    <div class="fg"><label class="flabel">${t('fName')}</label><input class="fi" id="fn" value="${txt(s.name)}"></div>
+    <div class="fg"><label class="flabel">${t('fTime')}</label><input class="fi" id="ft" value="${txt(s.time)}"></div>
+    <div class="fg"><label class="flabel">${t('fEquip')}</label><input class="fi" id="fe" value="${txt(s.equipment||'')}"></div>
+    <div class="fg"><label class="flabel">${t('fNotes')}</label><textarea class="fta" id="fno" rows="6">${arr2n(s.notes)}</textarea><div class="fhint">每行一条，⚠ 开头显示为橙色警告</div></div>
+  `, ()=>{
+    const name=document.getElementById('fn').value.trim();if(!name)return;
+    s.name={zh:name,en:name};
+    s.time={zh:document.getElementById('ft').value.trim(),en:document.getElementById('ft').value.trim()};
+    s.equipment={zh:document.getElementById('fe').value.trim(),en:document.getElementById('fe').value.trim()};
+    s.notes=n2arr(document.getElementById('fno').value);
+    save();closeModal();render();
+  });
+}
+
+function openAddStepModal(phid) {
+  openModal(t('addS'),`
+    <div class="fg"><label class="flabel">${t('fName')}</label><input class="fi" id="fn" placeholder="例：基底清洗"></div>
+    <div class="fg"><label class="flabel">${t('fTime')}</label><input class="fi" id="ft" placeholder="例：约 20 min"></div>
+    <div class="fg"><label class="flabel">${t('fEquip')}</label><input class="fi" id="fe" placeholder="例：超声清洗机"></div>
+    <div class="fg"><label class="flabel">${t('fNotes')}</label><textarea class="fta" id="fno" rows="4" placeholder="每行一条，⚠ 开头为警告"></textarea></div>
+  `, ()=>{
+    const name=document.getElementById('fn').value.trim();if(!name)return;
+    const p=db.processes.find(x=>x.id===curPid);
+    const ph=p?.phases.find(x=>x.id===phid);if(!ph)return;
+    ph.steps.push({
+      id:'s_'+Date.now(),
+      name:{zh:name,en:name},
+      time:{zh:document.getElementById('ft').value.trim(),en:document.getElementById('ft').value.trim()},
+      equipment:{zh:document.getElementById('fe').value.trim(),en:document.getElementById('fe').value.trim()},
+      notes:n2arr(document.getElementById('fno').value)
+    });
+    save();closeModal();render();
+  });
+}
+
+function openAddPhModal() {
+  openModal(t('addPh'),`
+    <div class="fg"><label class="flabel">${t('phN')}</label><input class="fi" id="fpn" placeholder="例：基底准备"></div>
+    <div class="fg"><label class="flabel">${t('phC')}</label>${colorPicker('#3b82f6')}</div>
+  `, ()=>{
+    const name=document.getElementById('fpn').value.trim();if(!name)return;
+    const p=db.processes.find(x=>x.id===curPid);if(!p)return;
+    p.phases.push({id:'ph_'+Date.now(),color:document.getElementById('fc').value||'#3b82f6',name:{zh:name,en:name},steps:[]});
+    save();closeModal();render();
+  });
+}
+
+function openEditPhModal(phid) {
+  const p=db.processes.find(x=>x.id===curPid);
+  const ph=p?.phases.find(x=>x.id===phid);if(!ph)return;
+  openModal(t('editPh'),`
+    <div class="fg"><label class="flabel">${t('phN')}</label><input class="fi" id="fpn" value="${txt(ph.name)}"></div>
+    <div class="fg"><label class="flabel">${t('phC')}</label>${colorPicker(ph.color)}</div>
+    <hr style="border:none;border-top:1px solid #e2e8f0;margin:12px 0">
+    <button onclick="delPhase('${phid}')" style="background:#fee2e2;color:#b91c1c;border:none;padding:10px;border-radius:8px;font-size:13px;cursor:pointer;width:100%">🗑 ${t('delPh')}</button>
+  `, ()=>{
+    const name=document.getElementById('fpn').value.trim();if(!name)return;
+    ph.name={zh:name,en:name};ph.color=document.getElementById('fc').value||ph.color;
+    save();closeModal();render();
+  });
+}
+
+function delPhase(phid) {
+  if(!confirm('确认删除此阶段及其所有步骤？'))return;
+  const p=db.processes.find(x=>x.id===curPid);
+  if(p){p.phases=p.phases.filter(x=>x.id!==phid);save();closeModal();render();}
+}
+
+function openAddProcModal() {
+  openModal(t('addP'),`
+    <div class="fg"><label class="flabel">${t('pName')}</label><input class="fi" id="fpn" placeholder="例：双层加热片"></div>
+    <div class="fg"><label class="flabel">${t('pDesc')}</label><input class="fi" id="fpd" placeholder="简短描述"></div>
+    <div class="fg"><label class="flabel">${t('pIcon')}</label><input class="fi" id="fpi" value="🔬" maxlength="2" style="width:80px"></div>
+  `, ()=>{
+    const name=document.getElementById('fpn').value.trim();if(!name)return;
+    db.processes.push({
+      id:'p_'+Date.now(),
+      name:{zh:name,en:name},
+      description:{zh:document.getElementById('fpd').value.trim(),en:document.getElementById('fpd').value.trim()},
+      icon:document.getElementById('fpi').value.trim()||'🔬',
+      phases:[]
+    });
+    save();closeModal();render();
+  });
+}
+
+// ── INIT ─────────────────────────────────────────────────────
+render();
+</script>
+</body>
+</html>
